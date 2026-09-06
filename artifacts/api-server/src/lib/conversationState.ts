@@ -170,6 +170,12 @@ function isTaskContinuation(message: string): boolean {
   return /\b(?:noch zwei|noch eine|noch eins|mehr|weitere|der erste|der zweite|der dritte|die erste|die zweite|die dritte|das erste|das zweite|das dritte|telefon|telefonnummer|adresse|offnungszeit|wie komme ich|route|dahin|zu teuer|zu weit|gefallt mir|passt|nehme ich)\b/u.test(text);
 }
 
+function isPreferenceOnlyContinuation(message: string): boolean {
+  if (detectPreferences(message).length === 0) return false;
+  const text = normalize(message);
+  return !/\b(?:suche|such|brauche|benotige|finde|gibt es|zeig|zeige|empfiehl|kaufen|mieten|buchen|apotheke|pharmacy|zahnarzt|dentist|arzt|doktor|klinik|krankenhaus|hospital|restaurant|essen|hotel|unterkunft|zimmer|taxi|bolt|grab|bus|transport|mietwagen|roller|werkstatt|abschlepp\w*|pannenhilfe|handwerker|klimaanlage|schlussel\w*|schloss\w*|immigration|visum|visa|behorde|freizeit|ausflug|tennis|fitness)\b/u.test(text);
+}
+
 export function updateConversationState(
   session: string,
   message: string,
@@ -222,7 +228,10 @@ export function updateConversationState(
   }
 
   const intent = inferIntent(message);
-  if (intent.kind === 'local_search') {
+  if (state.currentIntent?.kind === 'local_search' && isPreferenceOnlyContinuation(message)) {
+    state.activePreferences = [...new Set([...state.activePreferences, ...preferences])];
+    state.conversationPhase = 'SEARCHING_LOCAL';
+  } else if (intent.kind === 'local_search') {
     if (state.currentTopic && state.currentTopic !== intent.category) {
       state.previousTopic = state.currentTopic;
       state.activePreferences = [];
