@@ -97,8 +97,10 @@ export function detectTimeContext(message: string): SandraTimeContext {
   if (/\b(?:fruhstuck|fruhstucken)\b/u.test(text)) return 'breakfast';
   if (/\b(?:mittagessen|zu mittag)\b/u.test(text)) return 'lunch';
   if (/\b(?:abendessen|dinner)\b/u.test(text)) return 'dinner';
-  if (/\b(?:jetzt|gerade|im moment|sofort)\b/u.test(text)) return 'now';
+  // Future markers must win when one message states both the current and a later location,
+  // e.g. "Ich bin jetzt in Naklua, später bin ich in Jomtien".
   if (/\b(?:gleich|nachher|spater)\b/u.test(text)) return 'soon';
+  if (/\b(?:jetzt|gerade|im moment|sofort)\b/u.test(text)) return 'now';
   if (/\b(?:heute)\b/u.test(text)) return 'today';
   return 'unspecified';
 }
@@ -107,8 +109,8 @@ export function detectPreferences(message: string): SandraPreference[] {
   const text = normalize(message);
   const values: SandraPreference[] = [];
   if (/\b(?:nah|nahe|in der nahe|nicht zu weit|zu weit)\b/u.test(text)) values.push('nearby');
-  if (/\b(?:gunstig|billig|preiswert|zu teuer|weniger teuer)\b/u.test(text)) values.push('cheap');
-  if (/\b(?:ruhig|ruhe|nicht so laut)\b/u.test(text)) values.push('quiet');
+  if (/\b(?:gunstig\w*|billig\w*|preiswert\w*|zu teuer|weniger teuer)\b/u.test(text)) values.push('cheap');
+  if (/\b(?:ruhig\w*|ruhe|nicht so laut)\b/u.test(text)) values.push('quiet');
   if (/\b(?:direkt am strand|am strand|strandlage|beachfront|meerblick)\b/u.test(text)) values.push('beachfront');
   if (/\b(?:hund|hundefreundlich|dog friendly)\b/u.test(text)) values.push('dog_friendly');
   if (/\b(?:keine walking street|nicht walking street|ohne walking street)\b/u.test(text)) values.push('no_walking_street');
@@ -124,8 +126,8 @@ export function inferIntent(message: string): SandraIntent {
     [/\b(?:restaurant|essen|hunger|fruhstuck|mittagessen|abendessen)\b/u, 'local_search', 'restaurants'],
     [/\b(?:hotel|unterkunft|zimmer)\b/u, 'local_search', 'hotels'],
     [/\b(?:taxi|bolt|grab|bus|transport|mietwagen|roller)\b/u, 'local_search', 'transport'],
-    [/\b(?:werkstatt|abschlepp|pannenhilfe)\b/u, 'local_search', 'fahrzeughilfe'],
-    [/\b(?:handwerker|klimaanlage|schlussel|schloss|reparatur|handy .*kaputt)\b/u, 'local_search', 'dienstleistungen'],
+    [/\b(?:werkstatt|abschlepp\w*|pannenhilfe)\b/u, 'local_search', 'fahrzeughilfe'],
+    [/\b(?:handwerker|klimaanlage|schlussel\w*|schloss\w*|reparatur|handy .*kaputt)\b/u, 'local_search', 'dienstleistungen'],
     [/\b(?:immigration|visum|visa|behorde)\b/u, 'local_search', 'behoerden'],
     [/\b(?:unternehmen|freizeit|ausflug|tennis|fitness|strand)\b/u, 'local_search', 'freizeit'],
   ];
