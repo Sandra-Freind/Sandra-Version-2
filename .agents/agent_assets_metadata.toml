@@ -1,0 +1,380 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ZQohvv5tC1DIBebn6Mvzn"
+uri = "file://exports/Sandra-Vollbackup-2026-09-05.zip"
+type = "unspecified"
+title = "Sandra – vollständiges Datenbackup"
+description = "Direkt herunterladbare ZIP-Datei mit Sandra-Projekt, sämtlichen Quellordnern, Anhängen, Blueprint, Original-PHP-/JavaScript-Code sowie Datei- und Linkverzeichnis."
+logical_id = "036315eb-6674-4d8f-9d51-f0deffc2a35c"
+content_hash = "sha256:d309b81189bc8fdbfa82a2ac2fe48ab692198ba71f9a87bce5185f0d4c3a64f9"
+size = 11275393
+mtime_ms = 1788640384954
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/036315eb-6674-4d8f-9d51-f0deffc2a35c/2c0cef24-899f-44e7-8153-517e881a6965"
+storage_version_token = "1788640391284151"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "9nNmYrAWhN_KKLEsujVFP"
+uri = "file://exports/Sandra-Neuer-Code-Vollstaendig-2026-09-05.zip"
+type = "unspecified"
+title = "Sandra – nur der neu erstellte vollständige Code"
+description = "Enthält ausschließlich die neue mobile Sandra-App, den neuen API-Server, OpenAPI-Verträge, generierte Clients und notwendige Projektkonfigurationen. Keine Originaldateien, Anhänge oder Blueprint-Dokumente."
+logical_id = "eef7dd6f-12f1-4825-9e67-627234ece1b5"
+content_hash = "sha256:884f884cfbd38e23b59bc887039b79301653db2f4bc4b9d2d3313df725f4d3b1"
+size = 3079439
+mtime_ms = 1788640480301
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/eef7dd6f-12f1-4825-9e67-627234ece1b5/681aa193-4ed5-4667-9d54-4f4bba1c1861"
+storage_version_token = "1788640485525800"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "paGZ-9fQU0U-J36o2RUbN"
+uri = "file://exports/Sandra-Komplettbackup-Alt-und-Neu-2026-09-05.zip"
+type = "unspecified"
+title = "Sandra – vollständiger Code, alt und neu"
+description = "Ein vollständiges ZIP mit allen alten unveränderten Sandra-Dateien, allen neu erstellten und geänderten Dateien, Mobile-App, API-Server, OpenAPI-Code, Originalarchiv und Blueprint."
+logical_id = "6682b629-98fe-41fe-ad82-d7ca30bdb49f"
+content_hash = "sha256:b90f1e2f3198375d88565b040131ca9b828441350fa4e46fb98437fe4274c1e8"
+size = 9142135
+mtime_ms = 1788640882941
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/6682b629-98fe-41fe-ad82-d7ca30bdb49f/deec8537-876b-4824-ab11-dac565faea6c"
+storage_version_token = "1788640888862463"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "RE_VhL1SgRw-Bi93lQpLj"
+uri = "file://exports/Sandra-Finaler-Vollbackup-Komplett-2026-09-05.zip"
+type = "unspecified"
+title = "Sandra – finaler vollständiger Backup"
+description = "Ein einziger zusammengeführter aktueller Sandra-Ordner: kompletter Originalbestand, alle unveränderten Dateien, alle aktuellen Änderungen, neue Mobile-App und API, Datenbank, Cronjob, Review-, Prüfungs-, Praxis-, Sprach- und Dolmetscherdateien sowie Wiederherstellungsanleitung."
+logical_id = "eb93dec3-759c-4616-bcc1-fc05164af58b"
+content_hash = "sha256:a4c808f9afb715006f04eac8a8fadbf8e246a08ffbb155e220e344707c1ce080"
+size = 9133509
+mtime_ms = 1788642464997
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/eb93dec3-759c-4616-bcc1-fc05164af58b/34bcd5a0-e0c5-4a50-9752-c9d43eae4868"
+storage_version_token = "1788642471235544"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "LQSRRqpLmEnHJA6dS3ZAZ"
+uri = "file://exports/Sandra-Vollstaendiger-Datensatz-2026-09-06.zip"
+type = "unspecified"
+title = "Sandra – vollständiger Datensatz"
+description = "Vollständiges geprüftes Sandra-Projekt mit allen aktuellen und unveränderten Projektdateien, Quellcodes, Konfigurationen, Medien, Blueprint und vollständig entpacktem ursprünglichen PHP-/JavaScript-Bestand. 651 Dateien, eine saubere Wurzel, keine verschachtelten ZIPs und keine echten Zugangsschlüssel."
+logical_id = "425e4fad-cd9a-45fe-8944-72593ed21eee"
+content_hash = "sha256:2660e58e303f35b2d48e160c57dc42fac088077ee35cd739b57a52cbff3b821a"
+size = 6364832
+mtime_ms = 1788652301024
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/425e4fad-cd9a-45fe-8944-72593ed21eee/f5e17f8c-8abe-44f8-931e-61007f9c1f25"
+storage_version_token = "1788652328069047"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "UgXAzDEXvXArcLsEqkKYZ"
+uri = "file://exports/Sandra-Download.html"
+type = "text"
+title = "Sandra ZIP direkt herunterladen"
+description = "Diese eigenständige Download-Seite enthält die vollständige Sandra-ZIP direkt eingebettet. Seite öffnen und auf ZIP jetzt herunterladen klicken; die echte ZIP wird anschließend auf dem Gerät gespeichert."
+logical_id = "ced4ab48-49d9-4150-968d-155816876645"
+content_hash = "sha256:f3ba0a393bec07e382b694e8ede03eeb3d2dbe1b7d71fa62be9406c674c18cd1"
+size = 8489435
+mtime_ms = 1788652526997
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/ced4ab48-49d9-4150-968d-155816876645/203437b4-5e21-467a-a31b-016b08f9d04b"
+storage_version_token = "1788652537563543"
+content_type = "text/html"
+
+[[outputs]]
+id = "lpLKJ1U4lfhJi06ZK98YT"
+uri = "file://exports/Sandra-Vollbackup-Funktionsfaehig-2026-09-06.zip"
+type = "unspecified"
+title = "Sandra – vollständiger funktionsfähiger Projektbackup"
+description = "Vollständiger wiederherstellbarer Sandra-Projektbackup mit Quellcode, Konfigurationen, persistentem Katalog, Katalog-Backups, Review-/Auditdaten, Anhängen, Git-Historie und Wiederherstellungsanleitung. Automatisch neu erzeugbare Datenmassen wurden ausgeschlossen."
+logical_id = "a0cee26a-cc34-4a9d-9843-93eb307d1a85"
+content_hash = "sha256:ce3b30de3ebe257e028a1aa8e85a6f6274f6dd5490981546fadc5bc4d0ff5f78"
+size = 66510681
+mtime_ms = 1788685289204
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/a0cee26a-cc34-4a9d-9843-93eb307d1a85/795dba45-9686-4a23-b309-6956e71ac5d6"
+storage_version_token = "1788685299624367"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "0X22OS3BuaAz29h3LZj8b"
+uri = "file://exports/Sandra-Vollbackup-Funktionsfaehig-2026-09-06.zip.sha256"
+type = "unspecified"
+title = "SHA-256-Prüfsumme des Sandra-Backups"
+description = "Prüfdatei zur Kontrolle, ob der heruntergeladene ZIP-Backup unverändert und vollständig ist."
+logical_id = "6f41f837-9775-4e20-b6eb-ed2b9a1ab76e"
+content_hash = "sha256:83d26a989088a08be8e333e945741a6c16390bc103a46d0751914f9a2ddbb986"
+size = 123
+mtime_ms = 1788685289864
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/6f41f837-9775-4e20-b6eb-ed2b9a1ab76e/eb1a1443-e066-470e-8d7f-696bfd62fa13"
+storage_version_token = "1788685300319726"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "c6AZbjRQd_34a899J2xzM"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-00.bin"
+type = "unspecified"
+title = "Sandra-Vollbackup mit node_modules – Teil 1 von 5"
+description = "Erster direkt herunterladbarer Teil des vollständigen 450-MB-Backups. Alle fünf Teile 1 bis 5 werden benötigt."
+logical_id = "ff9ef49a-9158-405d-b03b-8fc7c7cd569c"
+content_hash = "sha256:944cd027ff7c3b0921e9a199e8ebb3736459140a34a51cb600e95a77622648bc"
+size = 94371840
+mtime_ms = 1788686362196
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/ff9ef49a-9158-405d-b03b-8fc7c7cd569c/c5964043-b637-460d-99e8-7694c336017d"
+storage_version_token = "1788686388354930"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Wxl0JBadqFylpxQ6XMKpP"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-01.bin"
+type = "unspecified"
+title = "Sandra-Vollbackup mit node_modules – Teil 2 von 5"
+description = "Zweiter direkt herunterladbarer Teil. Zusammen mit den Teilen 1, 3, 4 und 5 aufbewahren."
+logical_id = "0cd9dd41-33c4-4286-9270-989404b71f14"
+content_hash = "sha256:ca84ba348a0091fe4ec53e3fa12a9f9c72678f190209125abd2eec92a22b973a"
+size = 94371840
+mtime_ms = 1788686362268
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/0cd9dd41-33c4-4286-9270-989404b71f14/c77fb0d7-d2ae-485e-90bf-ed1fb4a51ec0"
+storage_version_token = "1788686398876724"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "tELb0wkrH7aOxr5gS9rre"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-02.bin"
+type = "unspecified"
+title = "Sandra-Vollbackup mit node_modules – Teil 3 von 5"
+description = "Dritter direkt herunterladbarer Teil. Zusammen mit den übrigen vier Teilen aufbewahren."
+logical_id = "13d6fcb4-60ca-40a9-abcc-92e9bc757cf2"
+content_hash = "sha256:15a73d081c03e05d0a0d24bfab30b5fb688d706fbd6b5ca61222a852f6206b9f"
+size = 94371840
+mtime_ms = 1788686362340
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/13d6fcb4-60ca-40a9-abcc-92e9bc757cf2/7f7eff87-b353-4f32-a721-e95b8426396d"
+storage_version_token = "1788686400444255"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "LKfFAVZiAn9Z4Ve8Ha8gO"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-03.bin"
+type = "unspecified"
+title = "Sandra-Vollbackup mit node_modules – Teil 4 von 5"
+description = "Vierter direkt herunterladbarer Teil. Zusammen mit den übrigen vier Teilen aufbewahren."
+logical_id = "8e5f1703-890a-4c77-9a3f-e14a41c6fb46"
+content_hash = "sha256:eee4418da11de69343f9cdc1a033ad723d3b6f3d6accd8e072f3f18a11961d8a"
+size = 94371840
+mtime_ms = 1788686362404
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/8e5f1703-890a-4c77-9a3f-e14a41c6fb46/a3268c7f-9662-484d-80b0-92dbde897dea"
+storage_version_token = "1788686401812214"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "XvX4AYdWcwHV0PVyhJ-kv"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-04.bin"
+type = "unspecified"
+title = "Sandra-Vollbackup mit node_modules – Teil 5 von 5"
+description = "Fünfter und letzter direkt herunterladbarer Teil des vollständigen Backups."
+logical_id = "ab436877-f3ef-4ca8-a77b-0e07aa080c13"
+content_hash = "sha256:b4d253f407ca25d85c65952ec5493e2b215856380935bfc4bcce1b1692668ad0"
+size = 93347425
+mtime_ms = 1788686362692
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/ab436877-f3ef-4ca8-a77b-0e07aa080c13/2a91b484-66b7-4725-8eb8-57c9c0183072"
+storage_version_token = "1788686403203517"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "KCxUJku6_5Ug_i74S-rBt"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06-ZUSAMMENSETZEN.txt"
+type = "text"
+title = "Anleitung zum Zusammensetzen des Sandra-Backups"
+description = "Kurze Anleitung für Windows, macOS und Linux. Nach dem Zusammensetzen entsteht die vollständige ZIP-Datei."
+logical_id = "ab96bc78-6d97-4329-8508-0d6880dc3bcb"
+content_hash = "sha256:4a185ea2bd205e6e5a3d2a30cc236f14373fd424ee73933ca8cd375e0045b8ab"
+size = 804
+mtime_ms = 1788686381964
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/ab96bc78-6d97-4329-8508-0d6880dc3bcb/a513ca14-dba2-46e3-b349-b270f674bc17"
+storage_version_token = "1788686403988343"
+content_type = "text/plain"
+
+[[outputs]]
+id = "sVNk9DL5wt0eyPAcuY6pe"
+uri = "file://exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06-TEILE.sha256"
+type = "unspecified"
+title = "Prüfsummen aller fünf Backup-Teile"
+description = "SHA-256-Prüfsummen zur Kontrolle, dass alle heruntergeladenen Teile unverändert sind."
+logical_id = "01009131-2c53-48d7-abd6-1ef772bec6ee"
+content_hash = "sha256:81e44f21fbc90071dfb111e8a23c15d66a3a7670ffb46777295b1d912d020e68"
+size = 680
+mtime_ms = 1788686364044
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/01009131-2c53-48d7-abd6-1ef772bec6ee/d13dd022-3c75-4fdc-94ee-f56748683d54"
+storage_version_token = "1788686404724616"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "NUCOtVTBxtcmys9GsYuHQ"
+uri = "file://exports/Sandra-Normalbackup-Projekt-und-Daten-2026-09-06.zip"
+type = "unspecified"
+title = "Sandra Normalbackup – Projekt und Daten"
+description = "Normale direkt entpackbare ZIP mit vollständigem Sandra-Quellcode, persistentem Katalog, Katalog-Backups, Konfigurationen, Anhängen und allen erforderlichen Projektdaten."
+logical_id = "bab9e7bc-5160-4532-a743-fea14ae908b8"
+content_hash = "sha256:ac9e398b820197783740ea0af0088f099ae829afcf0821815b68431c9cefb48e"
+size = 6577101
+mtime_ms = 1788687229296
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/bab9e7bc-5160-4532-a743-fea14ae908b8/2cc19fda-8146-4d20-a388-d7dd62de1c0f"
+storage_version_token = "1788687244823955"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Sl6p1ZzVKsk9kSrCXwAmC"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-01-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 1 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner wie die Projekt-ZIP entpacken."
+logical_id = "ccb6a6df-c731-4622-8c2e-781457d3d4f3"
+content_hash = "sha256:8e6cbae4a96f51065c0033495d6906fd3cb965f0b9b1104a6a78d1adecc444e3"
+size = 34746042
+mtime_ms = 1788686894712
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/ccb6a6df-c731-4622-8c2e-781457d3d4f3/b7e383a8-63ac-48f0-be3b-672e888a0c28"
+storage_version_token = "1788687245888632"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "PGJcWOILRfd25LY3rFLm1"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-02-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 2 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "68490431-fa3f-4f42-95a9-f3ff68d7898d"
+content_hash = "sha256:49379543d3f51c47ed1c3a3f65f0c3214430bb3f08bdaa6afbc3d54657b24983"
+size = 29739809
+mtime_ms = 1788686901864
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/68490431-fa3f-4f42-95a9-f3ff68d7898d/c8a05424-5d2e-4b8a-a007-23016144c94a"
+storage_version_token = "1788687246871958"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "a-vik5XURIMH00XPGc0AY"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-03-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 3 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "5d2efbc3-3647-446c-8a81-d0d775d51b90"
+content_hash = "sha256:41107e8631e3c173d7502ead3971d8b3916057adcf55bd7e528361b55227e7d4"
+size = 38093707
+mtime_ms = 1788686906824
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/5d2efbc3-3647-446c-8a81-d0d775d51b90/d776f1d4-d7b4-495d-95ee-c4a6da6a1ec8"
+storage_version_token = "1788687247939299"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "YNz964iJFXoMeLzbYr5es"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-04-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 4 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "3f2722e6-ca29-4cad-b078-979cb0805e80"
+content_hash = "sha256:a0498a98af0c97544636ec469f5ab499c959c7f8bb990872c9afc6b0bb42ebf4"
+size = 22716872
+mtime_ms = 1788686908380
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/3f2722e6-ca29-4cad-b078-979cb0805e80/4f605be9-1272-4cc2-91ab-db74a9a975c0"
+storage_version_token = "1788687248880511"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "FO3dDN1ivREyzxSug9YZ_"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-05-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 5 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "30d82645-a8b9-4b9d-833e-b4e05d7ea229"
+content_hash = "sha256:563917b4aa5b6e9cf1f0f4491eb3f936e472d6cdcc7c9f8f0fe9c0f0073197dd"
+size = 36133866
+mtime_ms = 1788686910700
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/30d82645-a8b9-4b9d-833e-b4e05d7ea229/977a6a38-14e6-44ff-8945-07288f189d23"
+storage_version_token = "1788687257778570"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "p8o3W3EF5fT3EEuc6f51M"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-06-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 6 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "6d6bf1b5-0b9d-4a9a-b61a-96429e4fcc4e"
+content_hash = "sha256:388e522725eec0230299f8b1e8110f52bf55a2e66dd6f5e11171f7611e49c103"
+size = 42685240
+mtime_ms = 1788686915140
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/6d6bf1b5-0b9d-4a9a-b61a-96429e4fcc4e/11f46c37-0085-45f5-bc5a-f3df070d8243"
+storage_version_token = "1788687258827818"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "EfAIyUTGgVkpO0keStTLR"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-07-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 7 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "653a5064-4b35-4c44-8498-4c3fa5c8aa63"
+content_hash = "sha256:6c782837c759a16b8e9dad9ebdc6362f2f47f446196af76aa830e8ba650056db"
+size = 30986871
+mtime_ms = 1788686922180
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/653a5064-4b35-4c44-8498-4c3fa5c8aa63/e850136e-9026-49f4-a356-f6486fb64ec4"
+storage_version_token = "1788687259874428"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "GsW-tWC17cssg8QJQsqkg"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-08-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 8 von 9"
+description = "Normale direkt entpackbare ZIP mit installierten Programmbibliotheken. In denselben Zielordner entpacken."
+logical_id = "5a19a2b9-2b3b-4427-b3ec-b5adff308f18"
+content_hash = "sha256:932b7722e7a686cb3168c2da5dbb995fddb61b777fc6b6aa2194289e2a13cb45"
+size = 21839504
+mtime_ms = 1788686926136
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/5a19a2b9-2b3b-4427-b3ec-b5adff308f18/fcd882d8-e55f-45d2-95a4-f59e66ada071"
+storage_version_token = "1788687260744059"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "CXm6-hrUmTs0-bwDnMhWr"
+uri = "file://exports/Sandra-Normalbackup-NodeModules-2026-09-06-09-von-09.zip"
+type = "unspecified"
+title = "Sandra node_modules – ZIP 9 von 9"
+description = "Neunte und letzte normale node_modules-ZIP. In denselben Zielordner wie alle anderen ZIPs entpacken."
+logical_id = "12405cff-14fb-449c-9013-77aabc3f26ce"
+content_hash = "sha256:ae8d78bab68375a62dd4226b3aa329fb48abdc27e3b4209c3ea3e392a2cbcdc0"
+size = 4469637
+mtime_ms = 1788686926860
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/12405cff-14fb-449c-9013-77aabc3f26ce/d101946e-59cc-4bfd-8f1e-9ef9d962e546"
+storage_version_token = "1788687261488360"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Bv9eVxn0-zOsxTWPpG0l1"
+uri = "file://exports/Sandra-Normalbackup-2026-09-06-ANLEITUNG.txt"
+type = "text"
+title = "Entpackanleitung für den Sandra-Normalbackup"
+description = "Einfache Reihenfolge zum direkten Entpacken aller normalen ZIP-Dateien. Kein Zusammensetzen erforderlich."
+logical_id = "001271ef-9ba4-42fb-976e-3840f4f70628"
+content_hash = "sha256:9c493f4123531e7bc8466e75ad7fdeca44ae4564728dbc389c57edd3fa88b952"
+size = 875
+mtime_ms = 1788687234711
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/001271ef-9ba4-42fb-976e-3840f4f70628/68cb254c-f91d-436d-8e21-3c5077dc8622"
+storage_version_token = "1788687262168489"
+content_type = "text/plain"
+
+[[outputs]]
+id = "jM7rL5JIcew2OMt3OorWX"
+uri = "file://exports/Sandra-Normalbackup-2026-09-06-Pruefsummen.sha256"
+type = "unspecified"
+title = "Prüfsummen der Sandra-Normalbackup-ZIPs"
+description = "SHA-256-Prüfsummen zur Kontrolle aller zehn normalen ZIP-Dateien."
+logical_id = "55153a7e-73f0-481c-a002-d919f018bea0"
+content_hash = "sha256:5457436253105b125c33ee2ec2e65be69686254807c3bc7bcf7ab41475f13ab3"
+size = 1306
+mtime_ms = 1788687235536
+storage_uri = "gcs://replit-rams-assets-kira/rams/assets/repl:4a98a710-d344-4de9-a280-70548cfb9e6a/55153a7e-73f0-481c-a002-d919f018bea0/d37b5faf-2319-44cc-b7f4-56160d98dc11"
+storage_version_token = "1788687262876845"
+content_type = "application/octet-stream"

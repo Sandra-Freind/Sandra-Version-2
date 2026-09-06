@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: sandra
+    description: Original Sandra companion API
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /sandra/chat:
+    post:
+      operationId: sandraChat
+      tags: [sandra]
+      summary: Send a message to Sandra
+      description: Queries the existing PHP Sandra first, preserves the conversation region and performs a source-backed web search in that exact Pattaya region when no verified local entry is available.
+      parameters:
+        - in: header
+          name: X-Sandra-Session
+          required: true
+          schema:
+            type: string
+            pattern: '^v2-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SandraChatRequest"
+      responses:
+        "200":
+          description: Sandra response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SandraReply"
+        "400":
+          description: Empty, invalid or oversized chat message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Too many requests for this session
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Original Sandra API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "504":
+          description: Original Sandra API timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /sandra/interpreter/audio:
+    post:
+      operationId: translateSandraAudio
+      tags: [sandra]
+      summary: Translate a recorded utterance
+      description: Sends a real microphone recording to the original Sandra interpreter.
+      parameters:
+        - in: header
+          name: X-Sandra-Session
+          required: true
+          schema:
+            type: string
+            pattern: '^v2-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SandraAudioRequest"
+      responses:
+        "200":
+          description: Transcription, translation and spoken translation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SandraInterpreterResponse"
+        "400":
+          description: Invalid or oversized audio recording
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Too many audio requests for this session
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Original Sandra interpreter unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "504":
+          description: Original Sandra interpreter timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    SandraChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        mode:
+          type: string
+          enum: [chat]
+      required:
+        - message
+        - mode
+    SandraMap:
+      type: object
+      properties:
+        title:
+          type: string
+        query:
+          type: string
+        url:
+          type: string
+    SandraReply:
+      type: object
+      properties:
+        reply:
+          type: string
+        maps:
+          type: array
+          items:
+            $ref: "#/components/schemas/SandraMap"
+      required:
+        - reply
+    SandraInterpreterResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        heard:
+          type: string
+        translated:
+          type: string
+        audio:
+          type: string
+        error:
+          type: string
+      required:
+        - ok
+    SandraAudioRequest:
+      type: object
+      properties:
+        audioBase64:
+          type: string
+          minLength: 1
+        target:
+          type: string
+          enum: [de, th]
+        mime:
+          type: string
+        fileName:
+          type: string
+      required:
+        - audioBase64
+        - target
+        - mime
+        - fileName
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required:
+        - code
+        - message
+

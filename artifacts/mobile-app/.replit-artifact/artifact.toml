@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Mobile App"
+description = "Eine echte mobile App für iPhone und iPad, die als Grundlage für ein späteres App-Store-Produkt dient."
+version = "1.0.0"
+id = "artifacts/mobile-app"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 24382
+
+[services.development]
+run = "pnpm --filter @workspace/mobile-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mobile-app", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/mobile-app", "run", "serve" ]
+
+[services.env]
+PORT = "24382"
+BASE_PATH = "/"

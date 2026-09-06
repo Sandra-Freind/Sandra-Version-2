@@ -1,0 +1,69 @@
+1. Vollständige praktische Suchprüfung
+
+Bisher wurden nur ausgewählte Kernfälle technisch kontrolliert. Noch systematisch zu testen sind:
+
+    alle sechs Regionen,
+    viele unterschiedliche Kategorien,
+    freie und fehlerhafte Formulierungen,
+    Folgefragen zu mehreren Treffern,
+    Suchen ohne erneut genannte Region,
+    Orte an Regionsgrenzen,
+    widersprüchliche oder unvollständige Internetquellen,
+    nicht mehr existierende Betriebe.
+
+Das ist der wichtigste nächste Schritt, weil dadurch weitere konkrete Korrekturen sichtbar werden können.
+2. Internettreffer dauerhaft speichern
+
+Die neue Internetrecherche liefert geprüfte Ergebnisse, schreibt sie derzeit aber noch nicht automatisch in den aktiven Sandra-Bestand.
+
+Es fehlt noch:
+
+    dauerhafte Speicherung neuer Treffer,
+    Aktualisierung bereits vorhandener Treffer,
+    Dublettenprüfung,
+    Kennzeichnung der Quelle und des Prüfdatums,
+    Sperren statt Löschen zweifelhafter Einträge,
+    Übergabe unsicherer Ergebnisse an die vorhandene Review-Liste.
+
+3. Cronjob mit der neuen Suche verbinden
+
+Im ursprünglichen PHP-System existiert cron_discovery.php. Der mobile API-Server verwendet diesen Cronjob aber nicht automatisch.
+
+Noch erforderlich:
+
+    den bestehenden Cronjob fachlich auf Sandras neuen lokalen Zweck begrenzen,
+    alle sechs Regionen regelmäßig prüfen,
+    veraltete Telefonnummern und Öffnungszeiten erkennen,
+    neue Ergebnisse zunächst sicher prüfen,
+    den Cronjob tatsächlich beim verwendeten Hosting regelmäßig ausführen lassen.
+
+4. Quellenprüfung weiter verbessern
+
+Sandra kontrolliert, ob die angegebenen HTTPS-Quellen von der KI-Websuche tatsächlich aufgerufen wurden. Viele Seiten blockieren jedoch einen zweiten automatischen Abruf.
+
+Deshalb besteht weiterhin ein Restrisiko:
+
+    Eine Quelle kann später ihren Inhalt ändern.
+    Angaben können auf einer Seite veraltet sein.
+    Suchmaschineninformationen können vom aktuellen Seiteninhalt abweichen.
+
+Verbesserbar wären:
+
+    mehrere Quellen für wichtige Angaben,
+    bevorzugte Betreiberseiten,
+    Quellenalter und letztes Prüfdatum,
+    automatische Wiedervorlage bei widersprüchlichen Daten,
+    strengere Bewertung von Branchenverzeichnissen.
+
+5. Regionsgrenzen weiter präzisieren
+
+Die sechs Regionen werden erkannt und klar falsche Nachbarregionen werden verworfen. Pattaya besitzt jedoch unscharfe Grenzen und unterschiedliche Adressbezeichnungen.
+
+Noch zu verbessern:
+
+    genauere Straßen- und Viertellisten,
+    Zuordnung von Nong Prue zur passenden Darkside-/Jomtien-Grenze,
+    Thappraya- und Thepprasit-Grenzfälle,
+    Na Jomtien eindeutig von Jomtien trennen,
+    Wongamat und Naklua getrennt behandeln,
+    Central Pattaya nicht mit South Pattaya vermischen.

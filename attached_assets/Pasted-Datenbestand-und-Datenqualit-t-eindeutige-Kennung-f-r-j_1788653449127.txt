@@ -1,0 +1,106 @@
+Datenbestand und Datenqualität
+
+    eindeutige Kennung für jeden Betrieb
+    Dubletten erkennen, auch bei leicht abweichenden Namen
+    Umzüge und Namensänderungen verarbeiten
+    dauerhaft geschlossene Betriebe kennzeichnen
+    mehrere Filialen sauber trennen
+    Kategorien vereinheitlichen
+    thailändische und englische Schreibweisen zusammenführen
+    alternative Straßennamen berücksichtigen
+    Koordinaten für Karten speichern
+    Quellenhistorie statt nur letzter Quelle
+    Datum der letzten Prüfung anzeigen
+    widersprüchliche Quellen erkennen
+    automatisch veraltete Einträge zur Nachprüfung markieren
+    Nutzerhinweise zu falschen Angaben ermöglichen
+
+Speicherung und Datenbank
+
+Der ursprüngliche Bestand verwendet teilweise JSON-Dateien. Für regelmäßige parallele Aktualisierungen ist das langfristig riskant.
+
+Verbesserbar sind:
+
+    sichere Schreibsperren gegen beschädigte Dateien
+    atomare Aktualisierungen
+    automatische Sicherungen vor jeder Änderung
+    Wiederherstellung früherer Datenstände
+    Datenbankschema mit Versionsverwaltung
+    spätere Umstellung auf eine richtige Datenbank, sofern ausdrücklich gewünscht
+    getrennte Bereiche für geprüft, ungeprüft, abgelehnt und veraltet
+
+Eine Datenbankumstellung würde ich allerdings nicht ohne ausdrückliche Zustimmung durchführen.
+Cronjob und automatische Recherche
+
+    verhindern, dass mehrere Cronläufe gleichzeitig starten
+    Tages- und Monatslimits festlegen
+    Regionen und Kategorien rotierend abarbeiten
+    fehlgeschlagene Prüfungen später erneut versuchen
+    Betreiberseiten gegenüber Verzeichnissen bevorzugen
+    Ergebnisse niemals ungeprüft veröffentlichen
+    Änderungen protokollieren
+    auffällige Änderungen zur manuellen Prüfung vorlegen
+    alte Einträge regelmäßig erneut kontrollieren
+    Kostenlimit für KI- und Websuche einbauen
+    Cronjob-Ausfälle sichtbar melden
+
+Regionserkennung
+
+    Schreibfehler wie „Jomtian“ erkennen
+    deutsche, englische und thailändische Regionsnamen verstehen
+    Straßennamen einer Region zuordnen
+    Regionswechsel im Gespräch eindeutig erkennen
+    Formulierungen wie „hier in der Nähe“ korrekt aus dem Kontext auflösen
+    Orte außerhalb der sechs Regionen klar kennzeichnen
+    nicht stillschweigend auf „ganz Pattaya“ ausweichen
+    Grenzfälle mit Entfernungshinweis statt falscher Zuordnung beantworten
+
+Suchverständnis
+
+    Synonyme erkennen, beispielsweise Apotheke, Pharmacy und Drugstore
+    kombinierte Anforderungen verstehen:
+        „deutscher Zahnarzt in Jomtien“
+        „Restaurant mit Parkplatz“
+        „24 Stunden geöffnet“
+        „rollstuhlgerecht“
+        „für Kinder geeignet“
+    Ergebnisse nach Entfernung, Öffnungsstatus oder Kategorie sortieren
+    geschlossene Betriebe nicht als „jetzt geöffnet“ darstellen
+    Suchkriterien in Folgefragen behalten
+    Auswahl wie „der zweite“ auch nach mehreren Nachrichten korrekt zuordnen
+    neue Suche zuverlässig von einer Folgefrage unterscheiden
+    bei zu wenig Informationen nur die wirklich notwendige Rückfrage stellen
+
+Antwortqualität
+
+    klar zwischen eigenem Bestand und Internetrecherche unterscheiden
+    Prüfdatum direkt beim Ergebnis anzeigen
+    unbekannte Telefonnummern ausdrücklich weglassen
+    unsichere Öffnungszeiten nicht als sicher darstellen
+    widersprüchliche Angaben erklären
+    keine Werbesprache aus Verzeichnissen übernehmen
+    kurze und gut lesbare Antworten liefern
+    lange Quellenadressen optisch verkürzen
+    Suchergebnisse einheitlich formatieren
+    bei null Treffern sinnvolle Alternativen anbieten, aber nur nach Zustimmung aus anderen Regionen
+
+Karten und Navigation
+
+    Koordinaten statt nur Textsuche verwenden, wenn belegt
+    Kartenlinks auf iPhone und iPad praktisch prüfen
+    Google Maps und Apple Karten berücksichtigen
+    fehlerhafte oder verkürzte Weiterleitungslinks erkennen
+    Kartenpunkt mit Adresse vergleichen
+    mehrere gleichnamige Betriebe auseinanderhalten
+    keine ungeprüften Koordinaten übernehmen
+
+Sitzungen und Gesprächsverlauf
+
+    Ablaufzeit für inaktive Sitzungen festlegen
+    alten Sitzungszustand kontrolliert entfernen
+    beschädigten lokalen Chatverlauf abfangen
+    Größenbegrenzung für gespeicherte Unterhaltungen
+    Migration bei zukünftigen Speicherformatänderungen
+    Region und Suchauswahl nach App-Neustart korrekt wiederherstellen
+    verhindern, dass alte Treffer bei einer neuen Suche verwendet werden
+    Sitzungszustand bei mehreren Geräten eindeutig behandeln

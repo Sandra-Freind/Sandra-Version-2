@@ -1,0 +1,5 @@
+- [Produkt- und Veröffentlichungsumfang](release-sequencing.md) — GPS dauerhaft ausgeschlossen; App Store, Rechtliches und abschließende Veröffentlichungsschritte bleiben zurückgestellt.
+- [Sprachlicher Produktumfang](language-scope.md) — Lokale Suche ausschließlich deutsch; Thai nur im ausdrücklich getrennten Deutsch-Thai-Dolmetscher.
+- [Kurzlebige Ortsdaten](volatile-place-data.md) — Quellenprüfung verhindert Erfindungen, garantiert aber keine Aktualität; jeder Adressvorschlag braucht einen Anrufhinweis.
+- [Direkt entpackbare Backups](backup-packaging.md) — Große Sicherungen als mehrere eigenständige ZIPs gliedern; keine binären Fragmente zum Zusammensetzen anbieten.
+- [Katalogtests ohne Testspuren](catalog-test-isolation.md) — Praxistests von Nutzerhinweisen verändern echte Katalogdaten; Testwirkung anschließend vollständig bereinigen.

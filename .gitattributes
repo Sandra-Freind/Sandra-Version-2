@@ -1,0 +1,7 @@
+exports/Sandra-Vollbackup-Funktionsfaehig-2026-09-06.zip filter=lfs diff=lfs merge=lfs -text
+exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip filter=lfs diff=lfs merge=lfs -text
+exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-00.bin filter=lfs diff=lfs merge=lfs -text
+exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-01.bin filter=lfs diff=lfs merge=lfs -text
+exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-02.bin filter=lfs diff=lfs merge=lfs -text
+exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-03.bin filter=lfs diff=lfs merge=lfs -text
+exports/Sandra-Vollbackup-Mit-Node-Modules-2026-09-06.zip.part-04.bin filter=lfs diff=lfs merge=lfs -text

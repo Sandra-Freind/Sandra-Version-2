@@ -1,0 +1,28 @@
+SANDRA – VOLLSTÄNDIGES AKTUELLES BACKUP
+
+INHALT
+- Vollständiger aktueller Quellcode der mobilen Sandra-App
+- Vollständiger aktueller API-Server
+- Aktueller JSON-Katalog einschließlich vorhandener Katalogsicherungen und Recherchestatus
+- Konfigurations-, Paket- und Lockdateien
+- Lokale Bilder, Schriften, Tests, Skripte und Original-Unterlagen
+- Installierte Programmbibliotheken in separat direkt entpackbaren ZIP-Dateien
+
+WIEDERHERSTELLUNG
+1. Einen neuen leeren Zielordner anlegen.
+2. Sandra-01-Projekt-und-Daten.zip in diesen Zielordner entpacken.
+3. Danach ALLE Dateien Sandra-02-Bibliotheken-XX-von-YY.zip nacheinander in denselben Zielordner entpacken.
+4. Beim Zusammenführen vorhandener Ordner zustimmen.
+5. Keine ZIP-Datei muss zusammengesetzt oder umbenannt werden.
+
+NICHT ENTHALTEN
+- Geheime Werte und Zugangsschlüssel
+- .git-Versionsdatenbank
+- Caches, temporäre Testergebnisse, Build-Ausgaben und ältere Exportarchive
+
+ERFORDERLICHE SECRET-NAMEN
+- OPENAI_API_KEY
+- REPLIT_EXPO_SESSION_SECRET
+- SESSION_SECRET
+
+Die geheimen Werte müssen in der Zielumgebung sicher neu hinterlegt werden. Sie dürfen niemals in einer Backup-ZIP stehen.

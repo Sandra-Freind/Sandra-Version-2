@@ -1,0 +1,56 @@
+Ja, ich habe verstanden.
+
+Du möchtest eine einzige finale ZIP-Datei mit einem vollständigen, aktuellen und funktionierenden Sandra-Backup.
+
+Darin muss Folgendes enthalten sein:
+
+    Der komplette ursprüngliche Sandra-Dateibaum
+        alle 506 gelieferten Dateien
+        alle Haupt- und Unterordner
+        alle versteckten Dateien und Ordner
+        alle PHP-, JavaScript-, HTML-, JSON-, Audio-, Prüfungs-, Test- und Konfigurationsdateien
+
+    Alle unveränderten Dateien
+        jede Datei, die ich nicht bearbeitet habe, bleibt vollständig und unverändert erhalten
+        kein Ordner und keine Datei wird wegen vermeintlicher Unwichtigkeit weggelassen
+
+    Alle geänderten Dateien
+        Dateien, die ich geändert habe, werden ausschließlich in ihrer neuesten vollständigen Fassung aufgenommen
+        die ersetzte alte Fassung wird nicht zusätzlich doppelt abgelegt
+
+    Alle neu erstellten Bestandteile
+        vollständige mobile Sandra-App
+        vollständiger API-Server
+        OpenAPI-Verträge
+        generierte API-Clients und Validierungsschemas
+        alle dafür benötigten Paket- und Projektdateien
+
+    Alle Betriebsbestandteile
+        datenbank.json
+        Cronjob-Dateien und Cron-Zustand
+        Review- und Freigabesystem
+        kompletter Ordner pruefung/
+        kompletter Ordner .sandra-work/
+        Praxis-, Dialog-, Geo- und Sprachdateien
+        Dolmetscherdateien
+        Tests
+        .htaccess
+        Hostinger-Anleitungen
+        Status- und Protokolldateien
+        Dokumentation der benötigten Hostinger-Cronjob-Einstellung
+
+    Eine zusammengeführte aktuelle Struktur
+        keine getrennten Sicherungen „Alt“ und „Neu“
+        keine doppelten veralteten Dateiversionen
+        ein einziger vollständiger Sandra-Ordner
+        unveränderte Dateien plus aktuelle geänderte Dateien plus neue Dateien
+
+    Wiederherstellbarkeit
+        vollständiges Dateiverzeichnis
+        Installations- und Wiederherstellungsanleitung
+        Liste benötigter Umgebungsvariablen
+        Hinweis auf erforderliche Hostinger-, Domain-, Cronjob- und externe Dienstkonfigurationen
+
+Die einzige Sicherheitsgrenze: Echte Passwörter, API-Schlüssel und Zugangsdaten darf ich nicht offen in eine herunterladbare ZIP-Datei schreiben. Die zugehörigen Konfigurationsdateien, Variablennamen und Wiederherstellungsanweisungen werden aber berücksichtigt, ohne geheime Werte offenzulegen.
+
+Ich mache noch nichts und warte auf deine Anweisun
