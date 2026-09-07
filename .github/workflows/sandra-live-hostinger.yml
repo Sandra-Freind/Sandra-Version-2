@@ -15,38 +15,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Wait for live deployment and verified Jomtien catalog
+      - name: Wait for live deployment and current conversation logic
         shell: python
         run: |
-          import json, time, uuid, urllib.request, urllib.error
+          import json, time, uuid, urllib.request
           BASE='https://darkgray-finch-693806.hostingersite.com'
           def b36(n):
               chars='0123456789abcdefghijklmnopqrstuvwxyz'; out=''
               while n: n,r=divmod(n,36); out=chars[r]+out
               return out or '0'
           def sid(): return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
-          def post(msg, session=None, timeout=70):
+          def post(msg, timeout=70):
               data=json.dumps({'mode':'chat','message':msg}).encode()
-              req=urllib.request.Request(BASE+'/api/sandra/chat',data=data,headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=data,headers={'Content-Type':'application/json','x-sandra-session':sid()},method='POST')
               with urllib.request.urlopen(req,timeout=timeout) as r: return r.status,json.loads(r.read().decode())
           ready=False; last=''
           for attempt in range(30):
               try:
-                  with urllib.request.urlopen(BASE+'/api/healthz',timeout=15) as r:
-                      assert r.status==200
-                  status,body=post('Restaurant in Jomtien')
-                  last=json.dumps(body,ensure_ascii=False)
-                  if status==200 and body.get('maps') and 'keinen ausreichend geprüften Eintrag' not in body.get('reply',''):
-                      ready=True; print('LIVE_DEPLOYMENT_READY attempt=',attempt+1); break
+                  with urllib.request.urlopen(BASE+'/api/healthz',timeout=15) as r: assert r.status==200
+                  s1,b1=post('Restaurant in Jomtien')
+                  s2,b2=post('Mein Handy ist kaputt in Central Pattaya')
+                  last=json.dumps({'jomtien':b1,'central_phone':b2},ensure_ascii=False)
+                  if s1==200 and b1.get('maps') and s2==200 and b2.get('maps'):
+                      ready=True; print('LIVE_CODE_READY attempt=',attempt+1); break
               except Exception as e:
                   last=repr(e)
-              print('waiting for Hostinger deployment',attempt+1,'last=',last[:500])
+              print('waiting for Hostinger code deployment',attempt+1,'last=',last[:700])
               time.sleep(20)
-          assert ready, 'Hostinger did not expose the new verified catalog in time: '+last[:1000]
+          assert ready, 'Hostinger did not expose the current code in time: '+last[:1200]
       - name: Live six-region finder, natural language, Maps and isolation matrix
         shell: python
         run: |
-          import json,time,uuid,urllib.request,urllib.error,re
+          import json,time,uuid,urllib.request
           BASE='https://darkgray-finch-693806.hostingersite.com'
           def b36(n):
               chars='0123456789abcdefghijklmnopqrstuvwxyz'; out=''
@@ -77,15 +77,10 @@ jobs:
               status,body=post(msg)
               assert status==200,(msg,status,body)
               assert isinstance(body.get('reply'),str) and body['reply'].strip(),(msg,body)
-              maps=body.get('maps',[]); assert isinstance(maps,list) and len(maps)<=3,(msg,maps)
-              # These cases are intentionally chosen from categories that exist in the verified seed.
-              assert maps,(msg,body)
-              for m in maps:
-                  assert m.get('url','').startswith('https://www.google.com/maps/search/?api=1&query='),(msg,m)
+              maps=body.get('maps',[]); assert isinstance(maps,list) and 1<=len(maps)<=3,(msg,maps,body)
+              for m in maps: assert m.get('url','').startswith('https://www.google.com/maps/search/?api=1&query='),(msg,m)
               text=body['reply']
-              for bad in forbidden[region]:
-                  # Do not flag source URLs or the generic freshness notice; only addresses/result body.
-                  assert bad.lower() not in text.lower(),(msg,'cross-region marker',bad,text)
+              for bad in forbidden[region]: assert bad.lower() not in text.lower(),(msg,'cross-region marker',bad,text)
               passn+=1
           print(f'LIVE_FINDER_OK cases={passn} regions=6')
       - name: Live conversation context and preference follow-ups
@@ -105,14 +100,30 @@ jobs:
           bodies=[]
           for msg in sequence:
               status,body=post(msg); assert status==200,(msg,status,body); bodies.append((msg,body))
-          beach=bodies[2][1]
-          assert beach.get('maps'),beach
+          beach=bodies[2][1]; assert beach.get('maps'),beach
           assert 'jomtien' in beach.get('reply','').lower(),beach
           assert 'strand' in beach.get('reply','').lower() or 'beach' in beach.get('reply','').lower(),beach
-          selected=bodies[3][1]; assert selected.get('reply'),selected
-          detail=bodies[4][1]; assert detail.get('reply'),detail
+          assert bodies[3][1].get('reply'),bodies[3]
+          assert bodies[4][1].get('reply'),bodies[4]
           more=bodies[5][1]; assert 'jomtien' in more.get('reply','').lower() or 'keine weiteren' in more.get('reply','').lower(),more
           print('LIVE_CONTEXT_OK turns=6 preference=beachfront selection=first detail=phone more=1')
+      - name: Live long explicit-region requests
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def post(msg):
+              s=f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':s},method='POST')
+              with urllib.request.urlopen(req,timeout=75) as r:return r.status,json.loads(r.read().decode())
+          cases=['Mein Handy ist kaputt in Central Pattaya','Ich brauche dringend eine Apotheke hier in Jomtien','Kannst du mir bitte einen Zahnarzt in East Pattaya zeigen?','Ich möchte heute ein Restaurant in Pratumnak finden']
+          for q in cases:
+              st,b=post(q); assert st==200 and b.get('maps'),(q,st,b); assert 'Wo bist du gerade' not in b.get('reply',''),(q,b)
+          print('LIVE_EXPLICIT_REGION_OK cases=4')
       - name: Live validation and boundary behavior
         shell: python
         run: |
