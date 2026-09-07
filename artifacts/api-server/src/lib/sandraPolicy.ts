@@ -25,30 +25,7 @@ export type SandraPolicyDecision = {
   reply?: string;
 };
 
-const EXPLICIT_OUTSIDE_PATTAYA_PLACE = /\b(?:
-  bangkok|krung\s*thep|
-  phuket|
-  chiang\s*mai|
-  hua\s*hin|
-  krabi|
-  koh\s*samui|ko\s*samui|samui|
-  ayutthaya|
-  udon\s*thani|
-  khon\s*kaen|
-  nakhon\s*ratchasima|korat|
-  rayong|
-  chanthaburi|
-  trat|
-  pattani|
-  hat\s*yai|hatyai|
-  surat\s*thani|
-  kanchanaburi|
-  lopburi|lop\s*buri|
-  sukhothai|
-  phitsanulok|
-  mae\s*hong\s*son|
-  chiang\s*rai
-)\b/ixu;
+const EXPLICIT_OUTSIDE_PATTAYA_PLACE = /\b(?:bangkok|krung\s*thep|phuket|chiang\s*mai|hua\s*hin|krabi|koh\s*samui|ko\s*samui|samui|ayutthaya|udon\s*thani|khon\s*kaen|nakhon\s*ratchasima|korat|rayong|chanthaburi|trat|pattani|hat\s*yai|hatyai|surat\s*thani|kanchanaburi|lopburi|lop\s*buri|sukhothai|phitsanulok|mae\s*hong\s*son|chiang\s*rai)\b/iu;
 
 function normalize(value: string): string {
   return value
