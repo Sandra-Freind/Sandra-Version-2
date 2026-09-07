@@ -1,4 +1,5 @@
 import { detectRegion, type SandraRegion } from './sandraKnowledge';
+import { matchSandraMasterDomains } from './sandraMasterTaxonomy';
 
 export type SandraTimeContext =
   | 'now'
@@ -133,6 +134,10 @@ export function inferIntent(message: string): SandraIntent {
   ];
   for (const [pattern, kind, category] of rules) {
     if (pattern.test(text)) return { kind, category, raw: message, confidence: 'high' };
+  }
+  const masterMatches = matchSandraMasterDomains(message);
+  if (masterMatches.length > 0) {
+    return { kind: 'local_search', category: masterMatches[0].id, raw: message, confidence: 'high' };
   }
   return { kind: 'conversation', raw: message, confidence: 'medium' };
 }
