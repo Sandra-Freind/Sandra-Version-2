@@ -1,0 +1,172 @@
+name: Sandra V2 exhaustive CI
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: artifacts/api-server/package.json
+      - name: Install API dependencies
+        working-directory: artifacts/api-server
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        working-directory: artifacts/api-server
+        run: npm run typecheck
+      - name: Existing unit tests
+        working-directory: artifacts/api-server
+        run: npm test
+      - name: Production build
+        working-directory: artifacts/api-server
+        run: npm run build
+      - name: Seed integrity and bootstrap test
+        working-directory: artifacts/api-server
+        shell: python
+        run: |
+          import json, pathlib, re, urllib.parse
+          root=pathlib.Path('data/seed')
+          expected={'naklua':15,'wongamat':1,'central':10,'pratumnak':6,'jomtien':14,'darkside':4}
+          ids=set(); total=verified=pending=0; checks=0
+          for region,count in expected.items():
+            data=json.loads((root/f'{region}.json').read_text(encoding='utf-8'))
+            assert data['schemaVersion']==1
+            assert len(data['places'])==count
+            for p in data['places']:
+              checks += 1; assert p['region']==region
+              checks += 1; assert p['id'] not in ids; ids.add(p['id'])
+              checks += 1; assert p['name'].strip()
+              checks += 1; assert p['address'].strip()
+              checks += 1; assert p['status'] in {'verified','pending','stale','closed','rejected'}
+              checks += 1; assert p['sources']
+              for src in p['sources']:
+                checks += 1; assert src['url'].startswith('https://')
+                checks += 1; assert re.match(r'^20\d\d-',src['checkedAt'])
+              total += 1; verified += p['status']=='verified'; pending += p['status']=='pending'
+          assert (total,verified,pending,len(ids))==(50,49,1,50)
+          print(f'SEED_INTEGRITY_OK checks={checks} total={total} verified={verified} pending={pending}')
+      - name: Bundle semantic core for deep tests
+        working-directory: artifacts/api-server
+        run: npx esbuild src/lib/sandraCatalogRuntime.ts src/lib/sandraKnowledge.ts --bundle --platform=node --format=esm --outdir=/tmp/sandra-core
+      - name: Deep semantic and region matrix
+        working-directory: artifacts/api-server
+        env:
+          SANDRA_DATA_DIR: /tmp/sandra-test-data
+        run: |
+          cat >/tmp/sandra-matrix.mjs <<'EOF'
+          import { rm, readFile } from 'node:fs/promises';
+          import { pathToFileURL } from 'node:url';
+          await rm('/tmp/sandra-test-data',{recursive:true,force:true});
+          const runtime=await import(pathToFileURL('/tmp/sandra-core/sandraCatalogRuntime.js'));
+          const knowledge=await import(pathToFileURL('/tmp/sandra-core/sandraKnowledge.js'));
+          const {sandraCatalog,catalogPlaceMatchesQuery,catalogReply}=runtime;
+          const {detectRegion,addressMatchesRegion,addressConflictsWithRegion,extractLocalSearchIntent,candidateMatchesIntent}=knowledge;
+          let pass=0, fail=0;
+          const check=(ok,label)=>{if(ok)pass++;else{fail++;console.error('FAIL',label)}};
+          const regions=['naklua','wongamat','central','pratumnak','jomtien','darkside'];
+          const regionForms={
+            naklua:['Naklua','Nakluea','Na Kluea','นาเกลือ'],
+            wongamat:['Wongamat','Wong Amat','Wongamart','วงศ์อมาตย์'],
+            central:['Central Pattaya','Pattaya Central','Pattaya Klang','Pattaya Mitte','พัทยากลาง'],
+            pratumnak:['Pratumnak','Pratamnak','Phra Tamnak','Khao Phra Tamnak','พระตำหนัก'],
+            jomtien:['Jomtien','Jomtian','Jomtiem','Chomtien','จอมเทียน'],
+            darkside:['Darkside','Dark Side','East Pattaya','Pattaya East','Nong Prue','หนองปรือ']
+          };
+          for(const [region,forms] of Object.entries(regionForms)) for(const f of forms) check(detectRegion(f)===region,`region ${f}`);
+          for(const bad of ['Na Jomtien','Na-Jomtien','South Pattaya','Pattaya Tai','Thappraya','Thepprasit']) check(detectRegion(bad)===null,`excluded ${bad}`);
+          check(detectRegion('Central Pattaya Road, Nong Prue')==='central','central beats administrative Nong Prue');
+          check(detectRegion('Jomtien Second Road, Nong Prue')==='jomtien','Jomtien beats administrative Nong Prue');
+          check(detectRegion('Nong Prue')==='darkside','plain Nong Prue remains Darkside');
+
+          const natural=[
+            ['jomtien','Ich habe Hunger in Jomtien','restaurant'],
+            ['jomtien','Wo kann ich in Jomtien essen?','restaurant'],
+            ['jomtien','Ich brauche Medikamente in Jomtien','pharmacy'],
+            ['jomtien','Wo bekomme ich Tabletten in Jomtien?','pharmacy'],
+            ['central','Ich brauche einen Supermarkt in Central Pattaya','lebensmittelgeschaft'],
+            ['central','Mein Handy ist kaputt in Central Pattaya','phone repair'],
+            ['naklua','Ich brauche einen Tierarzt in Naklua','veterinarian'],
+            ['naklua','Wo ist ein Elektriker in Naklua?','elektriker'],
+            ['pratumnak','Restaurant in Pratumnak','restaurant'],
+            ['darkside','Zahnarzt in East Pattaya','dentist'],
+            ['wongamat','Restaurant in Wongamat','restaurant'],
+          ];
+          for(const [region,q,cat] of natural){
+            const results=(await sandraCatalog.searchVerified({region,query:q,limit:50})).filter(p=>catalogPlaceMatchesQuery(p,q));
+            check(results.length>0,`natural no result ${q}`);
+            for(const p of results){check(p.region===region,`leak ${q} -> ${p.region}`);check(p.status==='verified',`unverified ${q}`);check(p.normalizedCategory===cat || (cat==='restaurant'&&p.normalizedCategory==='bar grill'),`wrong category ${q} -> ${p.category}`)}
+          }
+          const police=(await sandraCatalog.searchVerified({region:'jomtien',query:'Polizei in Jomtien',limit:50})).filter(p=>catalogPlaceMatchesQuery(p,'Polizei in Jomtien'));
+          check(police.length===1 && /police/i.test(police[0].name),'police subtype exact');
+          const immigration=(await sandraCatalog.searchVerified({region:'jomtien',query:'Immigration in Jomtien',limit:50})).filter(p=>catalogPlaceMatchesQuery(p,'Immigration in Jomtien'));
+          check(immigration.length===1 && /immigration/i.test(immigration[0].name),'immigration subtype exact');
+          const beach=(await sandraCatalog.searchVerified({region:'jomtien',query:'Restaurant direkt am Strand in Jomtien',limit:50})).filter(p=>catalogPlaceMatchesQuery(p,'Restaurant direkt am Strand in Jomtien'));
+          check(beach.length>0,'beachfront restaurant exists');
+          for(const p of beach) check(/strand|beachfront|beach front|seafront|sea front|oceanfront/i.test(`${p.description??''}`),`unproven beachfront ${p.name}`);
+          const centralHospital=(await sandraCatalog.searchVerified({region:'central',query:'Krankenhaus in Central Pattaya',limit:50})).filter(p=>catalogPlaceMatchesQuery(p,'Krankenhaus in Central Pattaya'));
+          check(centralHospital.some(p=>/Memorial/i.test(p.name)),'Central Memorial survives Nong Prue address');
+
+          const data=JSON.parse(await readFile('/tmp/sandra-test-data/sandra-catalog.json','utf8'));
+          check(data.places.length===50,'bootstrap creates 50 places');
+          check(data.places.filter(p=>p.status==='verified').length===49,'bootstrap verified 49');
+          check(new Set(data.places.map(p=>p.id)).size===50,'bootstrap unique ids');
+
+          for(const region of regions){
+            const all=data.places.filter(p=>p.region===region&&p.status==='verified');
+            for(const p of all){
+              check(addressMatchesRegion(p.address,region),`address mismatch ${region}/${p.name}`);
+              check(!addressConflictsWithRegion(p.address,region),`address conflict ${region}/${p.name}`);
+            }
+            const sample=all.slice(0,3); if(sample.length){
+              const r=catalogReply(sample,region);
+              check(r.maps.length<=3,`maps max3 ${region}`);
+              for(const m of r.maps){
+                const u=new URL(m.url);
+                check(u.protocol==='https:'&&u.hostname==='www.google.com',`maps host ${m.title}`);
+                check(u.pathname==='/maps/search/',`maps path ${m.title}`);
+                check(u.searchParams.get('api')==='1'&&!!u.searchParams.get('query'),`maps query ${m.title}`);
+              }
+            }
+          }
+
+          const phrases=['restaurant','essen','hunger','hungrig','apotheke','pharmacy','medikamente','tabletten','zahnarzt','dentist','arzt','klinik','hospital','tierarzt','vet clinic','handyreparatur','handy kaputt','friseur','barber','supermarkt','grocery','autowerkstatt','elektriker','immigration','polizei'];
+          for(let i=0;i<3000;i++){
+            const region=regions[i%regions.length]; const phrase=phrases[i%phrases.length];
+            const q=`${i%2?'Bitte':'Kannst du mir'} ${phrase} in ${regionForms[region][i%regionForms[region].length]} ${i%3?'':'zeigen'}`;
+            const results=(await sandraCatalog.searchVerified({region,query:q,limit:50})).filter(p=>catalogPlaceMatchesQuery(p,q)).slice(0,3);
+            check(results.length<=3,`fuzz max3 ${i}`);
+            for(const p of results){check(p.region===region,`fuzz region leak ${i}`);check(p.status==='verified',`fuzz status ${i}`)}
+          }
+          console.log(`DEEP_MATRIX pass=${pass} fail=${fail}`);
+          if(fail) process.exit(1);
+          EOF
+          node /tmp/sandra-matrix.mjs
+      - name: Start production bundle and verify health/session rejection
+        working-directory: artifacts/api-server
+        env:
+          PORT: 3100
+          SESSION_SECRET: ci-session-secret-not-production
+          REPLIT_EXPO_SESSION_SECRET: ci-expo-secret-not-production
+          SANDRA_API_BASE_URL: https://example.invalid/
+          SANDRA_DATA_DIR: /tmp/sandra-server-data
+        run: |
+          rm -rf /tmp/sandra-server-data
+          node dist/index.mjs >/tmp/sandra-server.log 2>&1 &
+          PID=$!
+          trap 'kill $PID || true; cat /tmp/sandra-server.log' EXIT
+          for i in {1..30}; do curl -fsS http://127.0.0.1:3100/api/healthz && break || sleep 1; done
+          test "$(curl -s -o /tmp/no-session.json -w '%{http_code}' -H 'Content-Type: application/json' -d '{"mode":"chat","message":"Restaurant in Jomtien"}' http://127.0.0.1:3100/api/sandra/chat)" = "401"
+          test "$(curl -s -o /tmp/bad-body.json -w '%{http_code}' -H 'x-sandra-session: invalid' -H 'Content-Type: application/json' -d '{"mode":"chat","message":""}' http://127.0.0.1:3100/api/sandra/chat)" = "401"
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/sandra-server-data/sandra-catalog.json'))
+          assert len(d['places'])==50
+          print('PRODUCTION_BOOTSTRAP_OK places=50')
+          PY
