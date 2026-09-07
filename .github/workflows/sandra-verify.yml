@@ -13,15 +13,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Clean install
-        working-directory: artifacts/api-server
-        run: npm install --no-audit --no-fund
+      - name: Clean workspace install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
       - name: Unit tests
-        working-directory: artifacts/api-server
-        run: npm test
+        run: pnpm --dir artifacts/api-server test
       - name: Production build
-        working-directory: artifacts/api-server
-        run: npm run build
+        run: pnpm --dir artifacts/api-server build
       - name: Catalog seed integrity
         working-directory: artifacts/api-server
         shell: python
