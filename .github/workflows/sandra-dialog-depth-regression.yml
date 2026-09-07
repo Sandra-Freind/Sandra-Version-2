@@ -1,0 +1,204 @@
+name: Sandra V2 intensive dialogue-depth regression
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sandra-v2-dialog-depth
+  cancel-in-progress: true
+jobs:
+  dialogue-depth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Intensive multi-turn dialogue regression
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error,re
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              chars='0123456789abcdefghijklmnopqrstuvwxyz'; out=''
+              while n:
+                  n,r=divmod(n,36); out=chars[r]+out
+              return out or '0'
+          def sid(): return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg,s,timeout=90):
+              req=urllib.request.Request(
+                  BASE+'/api/sandra/chat',
+                  data=json.dumps({'mode':'chat','message':msg}).encode('utf-8'),
+                  headers={'Content-Type':'application/json','x-sandra-session':s},
+                  method='POST')
+              with urllib.request.urlopen(req,timeout=timeout) as r:
+                  assert r.status==200,(r.status,msg)
+                  return json.loads(r.read().decode('utf-8'))
+          def check_basic(msg,out):
+              reply=(out.get('reply') or '').strip()
+              assert reply,(msg,out)
+              assert len(reply)<=2600,(msg,len(reply),reply[:400])
+              maps=out.get('maps') or []
+              assert len(maps)<=3,(msg,len(maps),out)
+              for m in maps:
+                  assert m.get('title'),(msg,m)
+                  assert m.get('query'),(msg,m)
+                  url=m.get('url','')
+                  assert url.startswith('https://www.google.com/maps/'),(msg,m)
+                  assert 'api=1' in url,(msg,m)
+              return reply,maps
+          def run(seq,name):
+              s=sid(); history=[]
+              for msg in seq:
+                  out=post(msg,s); reply,maps=check_basic(msg,out)
+                  history.append((msg,reply,maps))
+              print('DIALOG_OK',name,'turns=',len(seq))
+              return history
+
+          dialogs={
+            'jomtien_restaurant_refinement':[
+              'Ich bin in Jomtien',
+              'Ich möchte heute Abend mit meiner Frau essen gehen',
+              'ruhig und möglichst am Meer',
+              'nicht zu teuer',
+              'der zweite',
+              'Adresse?',
+              'Telefonnummer?',
+              'Wie komme ich dahin?',
+              'Danke, das reicht'
+            ],
+            'naklua_pharmacy_continuity':[
+              'Ich bin in Naklua',
+              'Ich brauche eine Apotheke',
+              'möglichst in der Nähe',
+              'noch zwei',
+              'der erste',
+              'Adresse?',
+              'Danke'
+            ],
+            'wongamat_doctor_context':[
+              'Ich bin in Wongamat',
+              'Ich brauche einen Arzt',
+              'am besten heute',
+              'noch zwei',
+              'der zweite',
+              'Adresse?'
+            ],
+            'central_dentist_budget':[
+              'Ich bin in Central Pattaya',
+              'Ich suche einen Zahnarzt',
+              'der erste ist mir zu teuer',
+              'zeig mir noch zwei',
+              'der zweite',
+              'Telefonnummer?'
+            ],
+            'pratumnak_future_dinner':[
+              'Ich bin gerade in Naklua, heute Abend bin ich in Pratumnak',
+              'Heute Abend suche ich dort ein Restaurant',
+              'ruhig',
+              'direkt am Strand wenn möglich',
+              'der erste',
+              'Adresse?'
+            ],
+            'darkside_vehicle':[
+              'Ich bin auf der Darkside',
+              'Mein Auto macht Probleme und ich brauche eine Werkstatt',
+              'in der Nähe',
+              'der erste',
+              'Telefonnummer?'
+            ],
+            'topic_switch_same_region':[
+              'Ich bin in Jomtien',
+              'Ich suche ein Restaurant',
+              'der erste',
+              'Jetzt brauche ich stattdessen eine Apotheke',
+              'der erste',
+              'Adresse?'
+            ],
+            'region_switch_same_topic':[
+              'Ich bin in Naklua',
+              'Ich suche ein Restaurant',
+              'Später bin ich in Wongamat',
+              'Später möchte ich dort auch essen',
+              'ruhig',
+              'der erste'
+            ],
+            'service_problem_natural_language':[
+              'Ich bin in Pratumnak',
+              'Meine Klimaanlage ist kaputt',
+              'ich brauche jemanden der das repariert',
+              'noch zwei',
+              'der erste',
+              'Adresse?'
+            ],
+            'product_need_natural_language':[
+              'Ich bin in Central Pattaya',
+              'Wo bekomme ich eine Matratze?',
+              'nicht zu teuer',
+              'noch zwei'
+            ],
+            'pet_need':[
+              'Ich bin in Jomtien',
+              'Mein Hund braucht einen Tierarzt',
+              'möglichst in der Nähe',
+              'der erste',
+              'Telefonnummer?'
+            ],
+            'leisure_rain':[
+              'Ich bin in Central Pattaya',
+              'Es regnet, was kann ich heute machen?',
+              'nichts draußen',
+              'noch zwei'
+            ],
+          }
+
+          total=0
+          for name,seq in dialogs.items():
+              run(seq,name); total+=len(seq)
+
+          # Explicit location should remain usable through several turns.
+          h=run(['Ich bin in Wongamat','Ich suche ein Restaurant','ruhig','noch zwei'],'wongamat_persistence')
+          for msg,reply,maps in h[1:]:
+              assert 'wo bist du' not in reply.lower(),(msg,reply)
+          total+=len(h)
+
+          # A pure follow-up must not suddenly become an unrelated category.
+          h=run(['Ich bin in Jomtien','Ich suche ein Restaurant','der erste','Adresse?'],'selection_no_topic_leak')
+          last=h[-1][1].lower()
+          assert 'zahnarzt' not in last and 'apotheke' not in last,(last,h)
+          total+=len(h)
+
+          # Forbidden/general/off-scope requests: never local maps, never fabricated Pattaya result.
+          forbidden=[
+            'Was gibt es politisch Neues?',
+            'Welche Partei soll ich wählen?',
+            'Was hältst du von der Bundesregierung?',
+            'Erzähl mir etwas über den Krieg in der Ukraine',
+            'Wer ist Bundeskanzler?',
+            'Wie steht Bitcoin?',
+            'Schreib mir Python-Code',
+            'Erklär mir Quantenphysik',
+            'Erzähl mir einen Witz',
+            'Spiel mit mir ein Quiz',
+            'Unterhalte mich ein bisschen',
+            'Restaurant in Bangkok',
+            'Arzt in Chiang Mai',
+            'Hotel in Phuket'
+          ]
+          for msg in forbidden:
+              out=post(msg,sid()); reply,maps=check_basic(msg,out)
+              assert not maps,(msg,out)
+              assert len(reply)<=900,(msg,len(reply),reply)
+          total+=len(forbidden)
+
+          # No stale result leakage into a brand-new independent session.
+          s1=sid(); a=post('Ich bin in Jomtien',s1); check_basic('loc',a); b=post('Ich suche ein Restaurant',s1); check_basic('restaurant',b)
+          s2=sid(); c=post('Adresse?',s2); r,_=check_basic('fresh-session-address',c)
+          assert 'dental world clinic' not in r.lower(),r
+          total+=3
+
+          print(f'INTENSIVE_DIALOG_DEPTH_OK dialogs={len(dialogs)+3} turns={total}')
