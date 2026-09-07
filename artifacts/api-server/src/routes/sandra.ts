@@ -1113,7 +1113,7 @@ async function runLocalOriginalInterpreter(
   // Speech recognition is the most failure-prone part of the interpreter.
   // Try the fast transcription model first and transparently retry once with
   // the higher-capability transcription model before returning a speech error.
-  for (const model of ["gpt-4o-mini-transcribe", "gpt-4o-transcribe"] as const) {
+  for (const model of ["gpt-4o-mini-transcribe", "gpt-4o-transcribe", "whisper-1"] as const) {
     const transcriptionForm = new FormData();
     transcriptionForm.append(
       "file",
@@ -1122,6 +1122,12 @@ async function runLocalOriginalInterpreter(
     );
     transcriptionForm.append("model", model);
     transcriptionForm.append("language", sourceLanguage);
+    transcriptionForm.append(
+      "prompt",
+      sourceLanguage === "de"
+        ? "Deutsche Alltagssprache. Transkribiere exakt. Häufige Ortsnamen: Pattaya, Jomtien, Naklua, Wongamat, Pratumnak."
+        : "ภาษาไทยในชีวิตประจำวัน ถอดเสียงให้ตรงตามที่พูดมากที่สุด",
+    );
 
     try {
       const transcriptionResponse = await fetch(
