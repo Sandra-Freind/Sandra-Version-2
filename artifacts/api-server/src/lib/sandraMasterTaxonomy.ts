@@ -46,7 +46,9 @@ function taxonomyTermMatches(text: string, term: string): boolean {
   const normalizedTerm = normalizeTaxonomyText(term).trim();
   if (!normalizedTerm) return false;
   const escaped = normalizedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-  return new RegExp(`(?:^|[^\p{L}\p{N}])${escaped}(?=$|[^\p{L}\p{N}])`, 'u').test(text);
+  // Double escaping is intentional: RegExp() receives the Unicode property
+  // escapes literally. Without it, "spa" matched the prefix of "spater".
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`, 'u').test(text);
 }
 
 export function matchSandraMasterDomains(message: string): SandraMasterDomain[] {
