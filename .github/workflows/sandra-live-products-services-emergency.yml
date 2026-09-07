@@ -34,47 +34,88 @@ jobs:
                   assert m.get('title') and m.get('query'),(label,m)
                   u=m.get('url',''); assert u.startswith('https://www.google.com/maps/') and 'api=1' in u,(label,m)
               return len(maps)
-          # Product/shopping requests: real local purchase needs, not generic conversation.
-          product_cases=[
-              ('Central Pattaya','Supermarkt'),
-              ('Jomtien','Lebensmittelgeschäft'),
-              ('Naklua','Apotheke'),
-          ]
+          product_cases=[('Central Pattaya','Supermarkt'),('Jomtien','Lebensmittelgeschäft'),('Naklua','Apotheke')]
           product_maps=0
           for region,need in product_cases:
               s=sid(); st,a=post(f'Ich bin in {region}',s); assert st==200 and a.get('reply'),(region,a)
               st,b=post(f'Ich brauche {need}',s); assert st==200,(region,need,b)
               product_maps+=validate_result(('product',region,need),b)
           assert product_maps>=1,product_maps
-          # Services across different operational domains.
-          service_cases=[
-              ('Central Pattaya','Handyreparatur'),
-              ('Jomtien','Friseur'),
-              ('Darkside','Autowerkstatt'),
-              ('Naklua','Tierarzt'),
-              ('Pratumnak','Zahnarzt'),
-              ('Central Pattaya','Behörde'),
-          ]
+          service_cases=[('Central Pattaya','Handyreparatur'),('Jomtien','Friseur'),('Darkside','Autowerkstatt'),('Naklua','Tierarzt'),('Pratumnak','Zahnarzt'),('Central Pattaya','Behörde')]
           service_maps=0
           for region,need in service_cases:
               s=sid(); st,a=post(f'Ich bin in {region}',s); assert st==200 and a.get('reply'),(region,a)
               st,b=post(f'Ich suche {need}',s); assert st==200,(region,need,b)
               service_maps+=validate_result(('service',region,need),b)
           assert service_maps>=2,service_maps
-          # Normal health request stays a scoped local finder task.
           s=sid(); post('Ich bin in Jomtien',s); st,health=post('Ich brauche einen Arzt',s); assert st==200,(st,health)
           validate_result('normal-health',health)
-          # Acute emergencies must override local search state and never return place cards/maps.
-          emergency_cases=[
-              'Ich bekomme keine Luft und habe starke Brustschmerzen',
-              'Ich habe Atemnot und starke Brustschmerzen',
-              'Nach einem Unfall habe ich eine starke Blutung',
-              'Jemand ist bewusstlos',
-          ]
+          emergency_cases=['Ich bekomme keine Luft und habe starke Brustschmerzen','Ich habe Atemnot und starke Brustschmerzen','Nach einem Unfall habe ich eine starke Blutung','Jemand ist bewusstlos']
           for msg in emergency_cases:
               s=sid(); post('Ich bin in Jomtien',s); post('Ich suche ein Restaurant',s)
               st,out=post(msg,s); assert st==200,(msg,st,out)
               reply=out.get('reply',''); assert reply,(msg,out); assert not (out.get('maps') or []),(msg,out)
-              assert '1669' in reply,(msg,reply)
-              assert 'nicht selbst' in reply.lower(),(msg,reply)
+              assert '1669' in reply,(msg,reply); assert 'nicht selbst' in reply.lower(),(msg,reply)
           print(f'LIVE_PRODUCTS_SERVICES_EMERGENCY_OK products={len(product_cases)} product_maps={product_maps} services={len(service_cases)} service_maps={service_maps} emergencies={len(emergency_cases)}')
+
+  interpreter-path-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+      UPSTREAM: https://sandra-bot.com/translate.php
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install speech generator
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng
+      - name: Compare original PHP interpreter with Hostinger Node route
+        shell: bash
+        run: |
+          set -euo pipefail
+          espeak-ng -v de -s 125 -w /tmp/sandra-diag.wav 'Wo ist die nächste Apotheke?'
+          python - <<'PY'
+          import base64,json,time,uuid,urllib.request,urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          UPSTREAM='https://sandra-bot.com/translate.php'
+          audio=open('/tmp/sandra-diag.wav','rb').read()
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          sid=f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def sanitize(raw):
+              try:d=json.loads(raw)
+              except:return {'raw_prefix':raw[:180]}
+              return {'ok':d.get('ok'),'error':d.get('error'),'heard':str(d.get('heard') or '')[:120],'translated':str(d.get('translated') or '')[:120],'audio_chars':len(str(d.get('audio') or ''))}
+          boundary='----SandraDiagnosticBoundary7f3a'
+          prefix=(f'--{boundary}\r\nContent-Disposition: form-data; name="target"\r\n\r\nth\r\n--{boundary}\r\nContent-Disposition: form-data; name="audio"; filename="diag.wav"\r\nContent-Type: audio/wav\r\n\r\n').encode()
+          body=prefix+audio+f'\r\n--{boundary}--\r\n'.encode()
+          req=urllib.request.Request(UPSTREAM,data=body,headers={'Accept':'application/json','Content-Type':f'multipart/form-data; boundary={boundary}'},method='POST')
+          try:
+              with urllib.request.urlopen(req,timeout=100) as r:
+                  up_status=r.status; up_raw=r.read().decode('utf-8','replace')
+          except urllib.error.HTTPError as e:
+              up_status=e.code; up_raw=e.read().decode('utf-8','replace')
+          print('DIRECT_UPSTREAM',up_status,sanitize(up_raw))
+          node_body={'audioBase64':base64.b64encode(audio).decode(),'target':'th','mime':'audio/wav','fileName':'diag.wav'}
+          req=urllib.request.Request(BASE+'/api/sandra/interpreter/audio',data=json.dumps(node_body).encode(),headers={'Content-Type':'application/json','x-sandra-session':sid},method='POST')
+          try:
+              with urllib.request.urlopen(req,timeout=120) as r:
+                  node_status=r.status; node_raw=r.read().decode('utf-8','replace')
+          except urllib.error.HTTPError as e:
+              node_status=e.code; node_raw=e.read().decode('utf-8','replace')
+          print('HOSTINGER_NODE',node_status,sanitize(node_raw))
+          up=sanitize(up_raw); node=sanitize(node_raw)
+          if up.get('ok') is True and node.get('ok') is not True:
+              raise AssertionError(('NODE_PATH_REGRESSION',up,node))
+          if up.get('error')=='speech' and node.get('error')=='speech':
+              print('DIAGNOSIS=UPSTREAM_SPEECH_AND_NODE_NO_RECOVERY')
+          elif up_status>=400:
+              print('DIAGNOSIS=UPSTREAM_HTTP_FAILURE')
+          elif node.get('ok') is True:
+              print('DIAGNOSIS=NODE_INTERPRETER_OK')
+          else:
+              print('DIAGNOSIS=UNCLASSIFIED',up,node)
+          PY
