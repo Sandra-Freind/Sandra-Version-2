@@ -1301,7 +1301,12 @@ async function forwardAudio(req: Request, res: Response): Promise<void> {
       // Speech recognition can occasionally return an empty/speech result even
       // for valid microphone audio. Retry the original interpreter with the
       // exact same recording before reporting a speech failure to the user.
-      for (let speechRetry = 0; speechRetry < 2; speechRetry += 1) {
+      // Back off between retries. The upstream interpreter historically maps
+      // transient transcription/provider throttling to the generic `speech`
+      // result; immediate retries simply hit the same transient condition.
+      const speechRetryDelays = [750, 1_500, 3_000];
+      for (let speechRetry = 0; speechRetry < speechRetryDelays.length; speechRetry += 1) {
+        await new Promise((resolve) => setTimeout(resolve, speechRetryDelays[speechRetry] ?? 750));
         const retryBoundary = `----SandraMobileRetry${Date.now().toString(16)}${speechRetry}`;
         const retryPrefix = Buffer.from(
           `--${retryBoundary}\r\nContent-Disposition: form-data; name="target"\r\n\r\n${target}\r\n` +
@@ -1422,7 +1427,12 @@ router.post("/chat", requireSession, rateLimit("chat", 30), async (req, res) => 
     return;
   }
   const askLocation = pendingLocationReply(state);
-  if (askLocation) {
+  // If the local Node context was lost during a restart or between host
+  // instances, do not prematurely ask for the region here. The deterministic
+  // upstream PHP session may still hold the user's previously stated region.
+  // forwardJson remains the safety gate: without any resolvable Pattaya region
+  // it returns the six-region prompt and never exposes unscoped results.
+  if (askLocation && state.currentIntent?.kind !== "local_search") {
     res.json({ reply: askLocation, maps: [] });
     return;
   }
