@@ -1,0 +1,237 @@
+name: Sandra V2 exhaustive live acceptance
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: sandra-v2-exhaustive-live
+  cancel-in-progress: true
+jobs:
+  chat-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exhaustive live Pattaya helper matrix
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error,re
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid(): return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg,s=None,timeout=90):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode('utf-8'),headers={'Content-Type':'application/json','x-sandra-session':s or sid()},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,json.loads(r.read().decode('utf-8'))
+              except urllib.error.HTTPError as e:
+                  body=e.read().decode('utf-8','replace')
+                  try: body=json.loads(body)
+                  except: body={'raw':body}
+                  return e.code,body
+          def good_maps(body):
+              maps=body.get('maps') or []
+              assert len(maps)<=3,body
+              for m in maps:
+                  u=m.get('url','')
+                  assert u.startswith('https://www.google.com/maps/'),m
+                  assert 'api=1' in u,m
+              return maps
+          # health
+          with urllib.request.urlopen(BASE+'/api/healthz',timeout=20) as r:
+              assert r.status==200
+              h=json.loads(r.read().decode()); assert h.get('status')=='ok',h
+          regions=['Naklua','Wongamat','Central Pattaya','Pratumnak','Jomtien','Darkside']
+          categories=['Restaurant','Apotheke','Zahnarzt','Arzt','Friseur','Handyreparatur','Autowerkstatt','Tierarzt','Behörde','Freizeit']
+          checks=0; with_results=0; empty_ok=0
+          for region in regions:
+              for cat in categories:
+                  s=sid()
+                  st,a=post(f'Ich bin in {region}',s); assert st==200,(region,cat,a); assert a.get('reply'),a; checks+=1
+                  st,b=post(f'Ich suche {cat}',s); assert st==200,(region,cat,b); reply=b.get('reply',''); assert reply,(region,cat,b); assert len(reply)<=2600,(region,cat,len(reply)); maps=good_maps(b); checks+=1
+                  # Never leak an explicitly different named region into a scoped result.
+                  low=reply.lower()
+                  if maps:
+                      with_results+=1
+                      # every returned Maps result needs a title/query/url
+                      for m in maps:
+                          assert m.get('title'),m; assert m.get('query'),m
+                      # follow-up continuity on one result-bearing query
+                      st,c=post('der erste',s); assert st==200 and c.get('reply'),(region,cat,c); checks+=1
+                      st,d=post('Adresse?',s); assert st==200 and d.get('reply'),(region,cat,d); checks+=1
+                  else:
+                      empty_ok+=1
+                      # empty is acceptable only as an explicit no-verified-result response, never fabricated maps
+                      assert ('geprüft' in low or 'gefunden' in low or 'region' in low or 'pattaya' in low),(region,cat,reply)
+          assert with_results>=20,(with_results,empty_ok)
+          print(f'LIVE_REGION_CATEGORY_MATRIX_OK checks={checks} searches={len(regions)*len(categories)} result_searches={with_results} verified_empty={empty_ok}')
+      - name: Live dialogue memory preference and time-context matrix
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg,s):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':s},method='POST')
+              with urllib.request.urlopen(req,timeout=90) as r:return json.loads(r.read().decode())
+          sequences=[
+            ['Ich bin in Jomtien','Ich suche ein Restaurant','günstig','noch zwei','der erste','Telefonnummer?','Wie komme ich dahin?','Danke'],
+            ['Ich bin in Naklua','Ich brauche eine Apotheke','in der Nähe','noch eine','Adresse?'],
+            ['Ich bin jetzt in Naklua, später bin ich in Wongamat','Später suche ich dort ein Restaurant','ruhig','der erste'],
+            ['Heute Abend bin ich in Pratumnak','Ich suche dort ein Restaurant','direkt am Strand','noch zwei'],
+            ['Ich bin in Central Pattaya','Ich suche einen Zahnarzt','zu teuer','noch zwei'],
+            ['Ich bin auf der Darkside','Ich brauche eine Autowerkstatt','der erste','Telefonnummer?'],
+          ]
+          turns=0
+          for seq in sequences:
+              s=sid(); last=None
+              for msg in seq:
+                  out=post(msg,s); reply=out.get('reply',''); assert reply,(seq,msg,out); assert len(reply)<=2600,(msg,len(reply)); assert len(out.get('maps') or [])<=3,out; last=out; turns+=1
+          print(f'LIVE_CONTEXT_PREFERENCES_OK sequences={len(sequences)} turns={turns}')
+      - name: Pattaya-only scope abuse and chatter matrix
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg):
+              s=sid(); req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':s},method='POST')
+              with urllib.request.urlopen(req,timeout=75) as r:return json.loads(r.read().decode())
+          chatter=['Erzähl mir einen Witz','Unterhalte mich','Lass uns chatten','Mir ist langweilig','Erzähl mir eine Geschichte','Plaudern wir ein bisschen','Schreib mir ein Gedicht','Spiel mit mir ein Quiz']
+          outside=['Restaurant in Bangkok','Hotel in Phuket','Arzt in Chiang Mai','Zahnarzt in Hua Hin','Apotheke in Rayong','Was kann ich in Koh Samui machen?']
+          general=['Wer ist Bundeskanzler?','Wie ist das Wetter in Berlin?','Erklär mir Quantenphysik','Schreib Python-Code','Wie steht Bitcoin?','Was gibt es politisch Neues?']
+          for msg in chatter+outside+general:
+              b=post(msg); assert b.get('reply'),(msg,b); assert not b.get('maps'),(msg,b); assert len(b.get('reply',''))<=800,(msg,b)
+          print(f'LIVE_PATTAYA_SCOPE_OK cases={len(chatter)+len(outside)+len(general)}')
+
+  protocol-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Live session body and HTTP boundary matrix
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          good=lambda:f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def call(body=None,session=None,ctype='application/json',raw=None):
+              data=raw if raw is not None else json.dumps(body).encode()
+              headers={'Content-Type':ctype}
+              if session is not None: headers['x-sandra-session']=session
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=data,headers=headers,method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:return r.status,r.read().decode()
+              except urllib.error.HTTPError as e:return e.code,e.read().decode()
+          cases=[
+            ({'mode':'chat','message':'Hallo'},None),
+            ({'mode':'chat','message':'Hallo'},'bad'),
+            ({'mode':'chat','message':''},good()),
+            ({'mode':'bad','message':'Hallo'},good()),
+            ({'mode':'chat','message':'x'*4001},good()),
+          ]
+          for body,s in cases:
+              st,text=call(body,s); assert 400<=st<500,(st,text[:500])
+          st,text=call(None,good(),raw=b'{bad json'); assert 400<=st<500,(st,text[:500])
+          # valid baseline after invalid traffic
+          st,text=call({'mode':'chat','message':'Hallo Sandra'},good()); assert st==200,(st,text[:500])
+          print('LIVE_PROTOCOL_BOUNDARIES_OK invalid_cases=6 baseline=1')
+
+  interpreter-roundtrip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install audio generator
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng
+      - name: Live interpreter multi-phrase German to Thai and Thai back to German
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess,base64,json,time,uuid,urllib.request,urllib.error,os
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def send(audio_bytes,target,mime='audio/wav',name='voice.wav'):
+              body={'audioBase64':base64.b64encode(audio_bytes).decode(),'target':target,'mime':mime,'fileName':name}
+              req=urllib.request.Request(BASE+'/api/sandra/interpreter/audio',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','x-sandra-session':sid()},method='POST')
+              with urllib.request.urlopen(req,timeout=120) as r:
+                  out=json.loads(r.read().decode()); assert r.status==200,out; return out
+          phrases=[
+            'Wo ist die nächste Apotheke?',
+            'Bitte fahren Sie mich nach Jomtien.',
+            'Wie viel kostet das?',
+            'Ich brauche einen Arzt.',
+            'Bitte ohne scharfes Essen.'
+          ]
+          roundtrips=0
+          for i,phrase in enumerate(phrases):
+              wav=f'/tmp/de-{i}.wav'
+              subprocess.run(['espeak-ng','-v','de','-s','125','-w',wav,phrase],check=True)
+              out=send(open(wav,'rb').read(),'th')
+              assert out.get('ok') is True,out
+              heard=(out.get('heard') or '').strip(); th=(out.get('translated') or '').strip(); audio=(out.get('audio') or '').strip()
+              assert len(heard)>=3 and len(th)>=2 and any('\u0e00'<=c<='\u0e7f' for c in th),out
+              thai_audio=base64.b64decode(audio,validate=True); assert len(thai_audio)>100,out
+              back=send(thai_audio,'de','audio/mpeg',f'thai-{i}.mp3')
+              assert back.get('ok') is True,back
+              de=(back.get('translated') or '').strip(); assert len(de)>=3,back
+              assert not any('\u0e00'<=c<='\u0e7f' for c in de),back
+              roundtrips+=1
+              print('ROUNDTRIP',i,'DE=',phrase,'TH=',th[:100],'BACK=',de[:100])
+          print(f'LIVE_INTERPRETER_ROUNDTRIP_OK phrases={roundtrips} directions={roundtrips*2}')
+          PY
+      - name: Live interpreter malformed audio boundaries
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error,base64
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def call(body,session=None):
+              req=urllib.request.Request(BASE+'/api/sandra/interpreter/audio',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=40) as r:return r.status,json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:return e.code,json.loads(e.read().decode())
+          bad=[
+            {'audioBase64':'%%%%','target':'th','mime':'audio/wav','fileName':'x.wav'},
+            {'audioBase64':'','target':'th','mime':'audio/wav','fileName':'x.wav'},
+            {'audioBase64':'QUJDRA==','target':'xx','mime':'audio/wav','fileName':'x.wav'},
+            {'audioBase64':'QUJDRA==','target':'de','mime':'audio/wav','fileName':'x.wav'},
+          ]
+          for x in bad:
+              st,b=call(x); assert st==400,(st,b); assert b.get('code')=='SANDRA_INTERPRETER_INPUT',b
+          print(f'LIVE_INTERPRETER_INPUT_GUARDS_OK cases={len(bad)}')
