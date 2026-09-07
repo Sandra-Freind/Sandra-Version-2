@@ -1,0 +1,38 @@
+name: Sandra V2 integrate master taxonomy
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Integrate broad Pattaya helper vocabulary
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('artifacts/api-server/src/lib/conversationState.ts')
+          s=p.read_text()
+          imp="import { matchSandraMasterDomains } from './sandraMasterTaxonomy';\n"
+          if imp not in s:
+              s=s.replace("import { detectRegion, type SandraRegion } from './sandraKnowledge';\n", "import { detectRegion, type SandraRegion } from './sandraKnowledge';\n"+imp)
+          needle="  return { kind: 'conversation', raw: message, confidence: 'medium' };"
+          repl="  const masterMatches = matchSandraMasterDomains(message);\n  if (masterMatches.length > 0) {\n    return { kind: 'local_search', category: masterMatches[0].id, raw: message, confidence: 'high' };\n  }\n  return { kind: 'conversation', raw: message, confidence: 'medium' };"
+          if needle in s and 'const masterMatches = matchSandraMasterDomains(message);' not in s:
+              s=s.replace(needle,repl)
+          p.write_text(s)
+      - name: Sanity check
+        run: |
+          grep -q "matchSandraMasterDomains" artifacts/api-server/src/lib/conversationState.ts
+          grep -q "masterMatches" artifacts/api-server/src/lib/conversationState.ts
+      - name: Commit integration
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add artifacts/api-server/src/lib/conversationState.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "Sandra V2: route master taxonomy through conversation state"
+          git push
