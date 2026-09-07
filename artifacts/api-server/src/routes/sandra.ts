@@ -1291,11 +1291,50 @@ async function forwardAudio(req: Request, res: Response): Promise<void> {
         fileName,
         target,
       );
-      if (localResult) {
+      if (localResult && !(localResult.ok === false && localResult.error === "speech")) {
         res.status(200);
         res.setHeader("Cache-Control", "no-store");
         res.json(localResult);
         return;
+      }
+
+      // Speech recognition can occasionally return an empty/speech result even
+      // for valid microphone audio. Retry the original interpreter with the
+      // exact same recording before reporting a speech failure to the user.
+      for (let speechRetry = 0; speechRetry < 2; speechRetry += 1) {
+        const retryBoundary = `----SandraMobileRetry${Date.now().toString(16)}${speechRetry}`;
+        const retryPrefix = Buffer.from(
+          `--${retryBoundary}\r\nContent-Disposition: form-data; name="target"\r\n\r\n${target}\r\n` +
+            `--${retryBoundary}\r\nContent-Disposition: form-data; name="audio"; filename="${fileName}"\r\n` +
+            `Content-Type: ${mime}\r\n\r\n`,
+        );
+        const retrySuffix = Buffer.from(`\r\n--${retryBoundary}--\r\n`);
+        const retryUpstream = await fetch(upstreamUrl, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": `multipart/form-data; boundary=${retryBoundary}`,
+          },
+          body: Buffer.concat([retryPrefix, audio, retrySuffix]),
+          signal: AbortSignal.timeout(INTERPRETER_TIMEOUT_MS),
+        });
+        const retryBody = await retryUpstream.text();
+        let retryResult: InterpreterResult | null = null;
+        try {
+          retryResult = JSON.parse(retryBody) as InterpreterResult;
+        } catch {
+          retryResult = null;
+        }
+        if (retryUpstream.ok && retryResult && !(retryResult.ok === false && retryResult.error === "speech")) {
+          res.status(retryUpstream.status);
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader(
+            "Content-Type",
+            retryUpstream.headers.get("content-type") ?? "application/json; charset=UTF-8",
+          );
+          res.send(retryBody);
+          return;
+        }
       }
     }
 
