@@ -1,0 +1,75 @@
+name: Sandra V2 deep conversation regression
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  conversation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: artifacts/api-server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Synthetic pagination and selection integration
+        env:
+          PORT: '3110'
+          SESSION_SECRET: deep-test-session
+          REPLIT_EXPO_SESSION_SECRET: deep-test-expo
+          SANDRA_API_BASE_URL: http://127.0.0.1:3210/
+          SANDRA_DATA_DIR: /tmp/sandra-deep-data
+        run: |
+          rm -rf /tmp/sandra-deep-data
+          mkdir -p /tmp/sandra-deep-data
+          python - <<'PY'
+          import json,datetime,uuid
+          now='2026-09-07T00:00:00.000Z'; stale='2030-01-01T00:00:00.000Z'
+          places=[]
+          for i in range(1,6):
+              name=f'Test Restaurant {i}'
+              addr=f'{i} Test Soi, Jomtien, Pattaya, Chon Buri 20150, Thailand'
+              places.append({'id':str(uuid.uuid4()),'name':name,'normalizedName':name.lower(),'category':'Restaurant','normalizedCategory':'restaurant','address':addr,'normalizedAddress':addr.lower(),'phone':f'03800000{i}','normalizedPhone':f'03800000{i}','description':'Geprüftes Testrestaurant in Jomtien.','hours':'10:00 - 22:00','region':'jomtien','status':'verified','sources':[{'url':f'https://example.com/r{i}','checkedAt':now,'kind':'operator'}],'checkedAt':now,'staleAt':stale,'createdAt':now,'updatedAt':now})
+          json.dump({'schemaVersion':1,'places':places,'reviewQueue':[],'auditLog':[]},open('/tmp/sandra-deep-data/sandra-catalog.json','w'),ensure_ascii=False)
+          PY
+          node - <<'NODE' >/tmp/fake-upstream.log 2>&1 &
+          const http=require('http'); http.createServer((req,res)=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({reply:'Kein passender Eintrag gefunden.',maps:[]}));});}).listen(3210,'127.0.0.1');
+          NODE
+          UP=$!
+          node dist/index.mjs >/tmp/deep-server.log 2>&1 & APP=$!
+          trap 'kill $APP $UP 2>/dev/null || true; cat /tmp/deep-server.log' EXIT
+          for i in {1..30}; do curl -fsS http://127.0.0.1:3110/api/healthz >/dev/null && break || sleep 1; done
+          python - <<'PY'
+          import json,time,uuid,urllib.request
+          BASE='http://127.0.0.1:3110'
+          chars='0123456789abcdefghijklmnopqrstuvwxyz'
+          def b36(n):
+              o=''
+              while n:n,r=divmod(n,36);o=chars[r]+o
+              return o or '0'
+          session=f'v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}'
+          def post(msg):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':session},method='POST')
+              with urllib.request.urlopen(req,timeout=20) as r:return json.loads(r.read().decode())
+          first=post('Restaurant in Jomtien')
+          assert len(first.get('maps',[]))==3, first
+          first_titles=[m['title'] for m in first['maps']]
+          more=post('noch zwei')
+          assert len(more.get('maps',[]))==2, more
+          more_titles=[m['title'] for m in more['maps']]
+          assert not set(first_titles)&set(more_titles),(first_titles,more_titles)
+          selected=post('der zweite')
+          assert selected.get('maps'), selected
+          assert selected['maps'][0]['title']==more_titles[1],('ordinal must select second of latest shown batch',first_titles,more_titles,selected)
+          phone=post('Telefonnummer?')
+          assert more_titles[1] in phone.get('reply',''),('phone must refer to selected place',more_titles[1],phone)
+          assert '038000005' in phone.get('reply',''),('phone must belong to selected fifth place',phone)
+          print('PAGINATION_SELECTION_OK initial=3 more=2 latest_batch_ordinal=2 followup_phone=selected')
+          PY
