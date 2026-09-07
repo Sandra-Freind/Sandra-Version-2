@@ -1,0 +1,67 @@
+name: Sandra V2 harden forbidden scope and taxonomy matcher
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Harden forbidden topics, routing order and taxonomy boundaries
+        shell: python
+        run: |
+          from pathlib import Path
+
+          knowledge = Path('artifacts/api-server/src/lib/sandraKnowledge.ts')
+          text = knowledge.read_text(encoding='utf-8')
+          old = r'''    /\b(wetter|regen|temperatur|nachrichten|politik|sport(?:ergebnis)?|borsenkurs|aktienkurs|uhrzeit|wie spat|welches datum)\b/u.test(
+      text,
+    )'''
+          new = r'''    /\b(?:wetter|regen|temperatur|nachrichten|politik\w*|politisch\w*|partei\w*|bundesregierung|bundeskanzler|wahl(?:en|kampf)?|krieg\w*|geopolitik\w*|regierung\w*|prasident\w*|nato|ukraine|russland|borsenkurs|aktienkurs|uhrzeit|wie spat|welches datum)\b/u.test(
+      text,
+    )'''
+          if old not in text:
+              raise SystemExit('Expected out-of-scope pattern not found')
+          text = text.replace(old, new, 1)
+          knowledge.write_text(text, encoding='utf-8')
+
+          taxonomy = Path('artifacts/api-server/src/lib/sandraMasterTaxonomy.ts')
+          text = taxonomy.read_text(encoding='utf-8')
+          old = """export function matchSandraMasterDomains(message: string): SandraMasterDomain[] {\n  const text = message.toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\\u0300-\\u036f]/gu,'').replace(/ß/gu,'ss');\n  return SANDRA_MASTER_TAXONOMY.filter(domain => domain.terms.some(term => text.includes(term.normalize('NFD').replace(/[\\u0300-\\u036f]/gu,'').replace(/ß/gu,'ss'))));\n}\n"""
+          new = """function normalizeTaxonomyText(value: string): string {\n  return value.toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\\u0300-\\u036f]/gu, '').replace(/ß/gu, 'ss');\n}\n\nfunction taxonomyTermMatches(text: string, term: string): boolean {\n  const normalizedTerm = normalizeTaxonomyText(term).trim();\n  if (!normalizedTerm) return false;\n  const escaped = normalizedTerm.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&').replace(/\\s+/g, '\\\\s+');\n  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`, 'u').test(text);\n}\n\nexport function matchSandraMasterDomains(message: string): SandraMasterDomain[] {\n  const text = normalizeTaxonomyText(message);\n  return SANDRA_MASTER_TAXONOMY.filter(domain =>\n    domain.terms.some(term => taxonomyTermMatches(text, term)),\n  );\n}\n"""
+          if old not in text:
+              raise SystemExit('Expected taxonomy matcher not found')
+          text = text.replace(old, new, 1)
+          taxonomy.write_text(text, encoding='utf-8')
+
+          route = Path('artifacts/api-server/src/routes/sandra.ts')
+          text = route.read_text(encoding='utf-8')
+          old = '''  const session = sessionKey(req);\n  const originalMessage = req.body.message;\n  await hydrateSessionContext(req);'''
+          new = '''  const session = sessionKey(req);\n  const originalMessage = req.body.message;\n\n  // Forbidden/general/off-scope requests must be rejected before they can\n  // mutate local-search state or inherit a previous place/region.\n  const earlyUnsupportedReply = outOfScopeReply(originalMessage);\n  if (earlyUnsupportedReply) {\n    res.json({ reply: earlyUnsupportedReply, maps: [] });\n    return;\n  }\n\n  await hydrateSessionContext(req);'''
+          if old not in text:
+              raise SystemExit('Expected chat prelude not found')
+          text = text.replace(old, new, 1)
+          old2 = '''  const unsupportedReply = outOfScopeReply(originalMessage);\n  if (unsupportedReply) {\n    res.json({ reply: unsupportedReply, maps: [] });\n    return;\n  }\n'''
+          if old2 not in text:
+              raise SystemExit('Expected late out-of-scope block not found')
+          text = text.replace(old2, '', 1)
+          route.write_text(text, encoding='utf-8')
+
+          # Static regression assertions against the exact defects found live.
+          k = knowledge.read_text(encoding='utf-8')
+          assert 'politisch\\w*' in k and 'partei\\w*' in k and 'krieg\\w*' in k
+          r = route.read_text(encoding='utf-8')
+          assert r.index('earlyUnsupportedReply') < r.index('await hydrateSessionContext(req)')
+          t = taxonomy.read_text(encoding='utf-8')
+          assert 'taxonomyTermMatches' in t and '.includes(term.normalize' not in t
+      - name: Commit hardened source
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add artifacts/api-server/src/lib/sandraKnowledge.ts artifacts/api-server/src/lib/sandraMasterTaxonomy.ts artifacts/api-server/src/routes/sandra.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "Sandra V2: block forbidden topics before local routing"
+          git push
