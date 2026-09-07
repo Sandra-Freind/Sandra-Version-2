@@ -21,7 +21,7 @@ export const HealthCheckResponse = zod.object({
  * Queries the existing PHP Sandra first, preserves the conversation region and performs a source-backed web search in that exact Pattaya region when no verified local entry is available.
  * @summary Send a message to Sandra
  */
-export const sandraChatHeaderXSandraSessionRegExp = new RegExp('^v2-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const sandraChatHeaderXSandraSessionRegExp = new RegExp('^v3-[0-9a-z]{8,12}-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
 
 
 export const SandraChatHeader = zod.object({
@@ -51,7 +51,7 @@ export const SandraChatResponse = zod.object({
  * Sends a real microphone recording to the original Sandra interpreter.
  * @summary Translate a recorded utterance
  */
-export const translateSandraAudioHeaderXSandraSessionRegExp = new RegExp('^v2-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+export const translateSandraAudioHeaderXSandraSessionRegExp = new RegExp('^v3-[0-9a-z]{8,12}-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
 
 
 export const TranslateSandraAudioHeader = zod.object({
@@ -75,5 +75,4 @@ export const TranslateSandraAudioResponse = zod.object({
   "audio": zod.string().optional(),
   "error": zod.string().optional()
 })
-
 
