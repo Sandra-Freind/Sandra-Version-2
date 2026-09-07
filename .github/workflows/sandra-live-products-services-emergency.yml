@@ -1,0 +1,80 @@
+name: Sandra V2 live products services emergency
+on:
+  push:
+    branches: [test/live-products-services-emergency]
+permissions:
+  contents: read
+jobs:
+  live-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Product service health and emergency live matrix
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg,s=None,timeout=90):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode('utf-8'),headers={'Content-Type':'application/json','x-sandra-session':s or sid()},method='POST')
+              with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,json.loads(r.read().decode('utf-8'))
+          def validate_result(label,body):
+              reply=body.get('reply',''); assert reply,(label,body); assert len(reply)<=2600,(label,len(reply))
+              maps=body.get('maps') or []; assert len(maps)<=3,(label,maps)
+              for m in maps:
+                  assert m.get('title') and m.get('query'),(label,m)
+                  u=m.get('url',''); assert u.startswith('https://www.google.com/maps/') and 'api=1' in u,(label,m)
+              return len(maps)
+          # Product/shopping requests: real local purchase needs, not generic conversation.
+          product_cases=[
+              ('Central Pattaya','Supermarkt'),
+              ('Jomtien','Lebensmittelgeschäft'),
+              ('Naklua','Apotheke'),
+          ]
+          product_maps=0
+          for region,need in product_cases:
+              s=sid(); st,a=post(f'Ich bin in {region}',s); assert st==200 and a.get('reply'),(region,a)
+              st,b=post(f'Ich brauche {need}',s); assert st==200,(region,need,b)
+              product_maps+=validate_result(('product',region,need),b)
+          assert product_maps>=1,product_maps
+          # Services across different operational domains.
+          service_cases=[
+              ('Central Pattaya','Handyreparatur'),
+              ('Jomtien','Friseur'),
+              ('Darkside','Autowerkstatt'),
+              ('Naklua','Tierarzt'),
+              ('Pratumnak','Zahnarzt'),
+              ('Central Pattaya','Behörde'),
+          ]
+          service_maps=0
+          for region,need in service_cases:
+              s=sid(); st,a=post(f'Ich bin in {region}',s); assert st==200 and a.get('reply'),(region,a)
+              st,b=post(f'Ich suche {need}',s); assert st==200,(region,need,b)
+              service_maps+=validate_result(('service',region,need),b)
+          assert service_maps>=2,service_maps
+          # Normal health request stays a scoped local finder task.
+          s=sid(); post('Ich bin in Jomtien',s); st,health=post('Ich brauche einen Arzt',s); assert st==200,(st,health)
+          validate_result('normal-health',health)
+          # Acute emergencies must override local search state and never return place cards/maps.
+          emergency_cases=[
+              'Ich bekomme keine Luft und habe starke Brustschmerzen',
+              'Ich habe Atemnot und starke Brustschmerzen',
+              'Nach einem Unfall habe ich eine starke Blutung',
+              'Jemand ist bewusstlos',
+          ]
+          for msg in emergency_cases:
+              s=sid(); post('Ich bin in Jomtien',s); post('Ich suche ein Restaurant',s)
+              st,out=post(msg,s); assert st==200,(msg,st,out)
+              reply=out.get('reply',''); assert reply,(msg,out); assert not (out.get('maps') or []),(msg,out)
+              assert '1669' in reply,(msg,reply)
+              assert 'nicht selbst' in reply.lower(),(msg,reply)
+          print(f'LIVE_PRODUCTS_SERVICES_EMERGENCY_OK products={len(product_cases)} product_maps={product_maps} services={len(service_cases)} service_maps={service_maps} emergencies={len(emergency_cases)}')
