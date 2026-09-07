@@ -216,7 +216,6 @@ export function updateConversationState(
       state.currentLocation = locationState;
     }
   }
-
   const preferences = detectPreferences(message);
 
   if (state.waitingFor === 'location' && region) {
@@ -239,11 +238,15 @@ export function updateConversationState(
     if (preferences.length) state.activePreferences = [...new Set([...state.activePreferences, ...preferences])];
     state.currentTopic = intent.category;
     state.currentIntent = intent;
-    if (!resolveRelevantRegion(state, time)) {
+    // A region explicitly written in this search is sufficient even when the
+    // user did not first state it separately as their current location.
+    if (!region && !resolveRelevantRegion(state, time)) {
       state.pendingIntent = intent;
       state.waitingFor = 'location';
       state.conversationPhase = 'WAITING_FOR_LOCATION';
     } else {
+      state.pendingIntent = undefined;
+      state.waitingFor = undefined;
       state.conversationPhase = 'SEARCHING_LOCAL';
     }
   } else if (state.currentIntent?.kind === 'local_search' && (preferences.length > 0 || isTaskContinuation(message))) {
