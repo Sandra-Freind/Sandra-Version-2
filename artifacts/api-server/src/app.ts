@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { sandraApiContract, sandraChatPolicy } from "./middlewares/sandraPolicy";
 
 const app: Express = express();
 
@@ -38,6 +39,8 @@ app.use(
     res.setHeader("Referrer-Policy", "no-referrer");
     next();
   },
+  sandraApiContract,
+  sandraChatPolicy,
   router,
 );
 
