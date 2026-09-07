@@ -40,23 +40,6 @@ jobs:
               raise SystemExit('speech retry target not found')
 
           p.write_text(s,encoding='utf-8')
-
-          w=Path('.github/workflows/sandra-live-full-heart-kidneys.yml')
-          ws=w.read_text(encoding='utf-8')
-          target='''      - name: Live interpreter malformed audio boundaries\n        shell: python'''
-          replacement='''      - name: Live interpreter malformed audio boundaries\n        if: always()\n        shell: python'''
-          if target in ws:
-              ws=ws.replace(target,replacement,1)
-          elif replacement not in ws:
-              raise SystemExit('malformed-boundary target not found')
-          w.write_text(ws,encoding='utf-8')
-
-          d=Path('.github/workflows/sandra-dialog-depth-regression.yml')
-          ds=d.read_text(encoding='utf-8')
-          marker="print('DIALOGUE_DEPTH_OK"
-          if marker not in ds:
-              # Workflow may use a differently named success marker; no weakening.
-              pass
           print('RESILIENCE_PATCH_OK')
       - name: Install and build API server
         working-directory: artifacts/api-server
@@ -72,6 +55,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/src/routes/sandra.ts .github/workflows/sandra-live-full-heart-kidneys.yml
+          git add artifacts/api-server/src/routes/sandra.ts
           git commit -m "Sandra V2: harden dialogue location and interpreter speech retries"
           git push origin HEAD:main
