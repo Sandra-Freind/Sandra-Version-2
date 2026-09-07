@@ -5,6 +5,8 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { sandraApiContract, sandraChatPolicy } from "./middlewares/sandraPolicy";
 
+declare const __SANDRA_BUILD_SHA__: string;
+
 const app: Express = express();
 
 app.use(
@@ -29,6 +31,14 @@ app.use(
 app.use(cors());
 app.use(express.json({ limit: "24mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+app.get("/api/sandra/build", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    ok: true,
+    sha: typeof __SANDRA_BUILD_SHA__ === "string" ? __SANDRA_BUILD_SHA__ : "unknown",
+  });
+});
 
 app.use(
   "/api",
