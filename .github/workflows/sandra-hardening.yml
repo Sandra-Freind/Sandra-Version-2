@@ -1,51 +1,52 @@
-name: Sandra V2 hardening
+name: Sandra V2 one-shot catalog fix
 on:
   push:
     branches: [main]
 permissions:
   contents: write
 jobs:
-  harden:
+  fix:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply tested search hardening
+      - name: Correct seed identity and validate all regional seeds
         shell: python
         run: |
           from pathlib import Path
-          p=Path('artifacts/api-server/src/lib/sandraKnowledge.ts')
-          s=p.read_text()
-          s=s.replace('  if (REGION_PATTERNS.darkside.test(text) && !BORDER_ROAD_PATTERN.test(text)) {\n    return "darkside";\n  }\n  if (REGION_PATTERNS.central.test(text) && !SOUTH_PATTAYA_PATTERN.test(text)) {\n    return "central";\n  }','  // Explicit Central Pattaya beats the administrative district name Nong Prue\n  // that appears in many Central Pattaya postal addresses.\n  if (REGION_PATTERNS.central.test(text) && !SOUTH_PATTAYA_PATTERN.test(text)) {\n    return "central";\n  }\n  if (REGION_PATTERNS.darkside.test(text) && !BORDER_ROAD_PATTERN.test(text)) {\n    return "darkside";\n  }')
-          s=s.replace('(?:\\b(?:apotheke|pharmacy|drugstore|chemist)\\b|ยา|รานยา)','(?:\\b(?:apotheke|pharmacy|drugstore|chemist|medikament\\w*|tablett\\w*)\\b|ยา|รานยา)')
-          s=s.replace('["Restaurant / Essen", /(?:\\b(?:restaurant|essen|food|cafe|café)\\b|อาหาร)/u],','["Restaurant / Essen", /(?:\\b(?:restaurant|essen|hunger|hungrig\\w*|food|cafe|café)\\b|อาหาร)/u],')
-          s=s.replace('(?:\\b(?:lebensmittel|supermarkt|supermarket|grocery)\\b|ตลาด|รานขายของชา)','(?:\\b(?:lebensmittel(?:geschaft)?|supermarkt|supermarket|grocery)\\b|ตลาด|รานขายของชา)')
-          marker='    ["jetzt geöffnet", /\\b(?:jetzt geoffnet\\w*|open now|geoffnet jetzt)\\b/u],\n'
-          if '"günstig", /\\b' not in s:
-            s=s.replace(marker, marker+'    ["günstig", /\\b(?:gunstig\\w*|billig\\w*|preiswert\\w*|cheap|affordable|budget)\\b/u],\n    ["ruhig", /\\b(?:ruhig\\w*|quiet|calm)\\b/u],\n    ["direkt am Strand", /\\b(?:direkt am strand|am strand|beachfront|beach front|seafront|sea front|oceanfront)\\b/u],\n    ["hundefreundlich", /\\b(?:hundefreundlich\\w*|hund erlaubt|dog friendly|pet friendly|dog_friendly)\\b/u],\n    ["nicht Walking Street", /\\b(?:keine walking street|nicht walking street|ohne walking street|no walking street|no_walking_street)\\b/u],\n')
-          guard='''  if (\n    intent.categories.includes("Arzt / Klinik") &&\n    /\\b(?:zahnarzt|dentist|dental)\\b/u.test(candidate) &&\n    !/\\b(?:zahnarzt|dentist|dental)\\b/u.test(request)\n  ) {\n    return false;\n  }\n'''
-          if 'Specific subtypes must not degrade' not in s:
-            s=s.replace(guard,guard+'  // Specific subtypes must not degrade into a generic category match.\n  if (/\\b(?:klempner|plumber)\\b/u.test(request) && !/\\b(?:klempner|plumber)\\b/u.test(candidate)) return false;\n  if (/\\b(?:elektriker|electrician)\\b/u.test(request) && !/\\b(?:elektriker|electrician|electrical)\\b/u.test(candidate)) return false;\n  if (/\\b(?:schlusseldienst|locksmith)\\b/u.test(request) && !/\\b(?:schlusseldienst|locksmith|schlusselservice|key service)\\b/u.test(candidate)) return false;\n  if (/\\b(?:polizei|police)\\b/u.test(request) && !/\\b(?:polizei|police)\\b/u.test(candidate)) return false;\n  if (/\\bimmigration\\b/u.test(request) && !/\\bimmigration\\b/u.test(candidate)) return false;\n')
-          s=s.replace('["Restaurant / Essen", /(?:\\b(?:restaurant|cafe|café|food)\\b|อาหาร)/u],','["Restaurant / Essen", /(?:\\b(?:restaurant|cafe|café|food|bar\\s*&\\s*grill)\\b|อาหาร)/u],')
-          hours='''    if (\n      (criterion === "24 Stunden geöffnet" ||\n        criterion === "jetzt geöffnet") &&\n      !/\\b(?:24 ?stunden|24 ?hours?|24\\/7|rund um die uhr)\\b/u.test(\n        verifiedHours,\n      )\n    ) return false;\n'''
-          if 'criterion === "günstig"' not in s:
-            s=s.replace(hours,hours+'    if (criterion === "günstig" && !/\\b(?:gunstig\\w*|billig\\w*|preiswert\\w*|cheap|affordable|budget|lokale preise)\\b/u.test(verifiedDetails)) return false;\n    if (criterion === "ruhig" && !/\\b(?:ruhig\\w*|quiet|calm|entspannt\\w*)\\b/u.test(verifiedDetails)) return false;\n    if (criterion === "direkt am Strand" && !/\\b(?:direkt am strand|am strand|beachfront|beach front|seafront|sea front|oceanfront)\\b/u.test(verifiedDetails)) return false;\n    if (criterion === "hundefreundlich" && !/\\b(?:hundefreundlich\\w*|hund erlaubt|dog friendly|pet friendly)\\b/u.test(verifiedDetails)) return false;\n    if (criterion === "nicht Walking Street" && /\\bwalking street\\b/u.test(candidate)) return false;\n')
-          p.write_text(s)
+          import json
+          p = Path('artifacts/api-server/data/seed/central.json')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('dd75ee85-7094-4ef6-999b-2a5db32dd84b', 'dd75ee85-7094-4ef5-b7a6-ef49a0dad0bd')
+          p.write_text(s, encoding='utf-8')
 
-          p=Path('artifacts/api-server/src/lib/sandraCatalog.ts')
-          s=p.read_text()
-          anchor='const QUERY_STOP_WORDS = new Set([\n  "wo", "wie", "was", "wer", "finde", "finden", "suche", "suchen", "such",\n  "ich", "mir", "eine", "einen", "einer", "ein", "der", "die", "das", "in",\n  "im", "am", "auf", "bei", "bitte", "gibt", "es", "zeig", "zeige", "kennst",\n  "empfiehl", "brauche", "benotige", "pattaya", "naklua", "wongamat",\n  "central", "pratumnak", "jomtien", "jomtian", "darkside", "east",\n]);\n'
-          if 'function semanticCategoryKeys' not in s:
-            semantic='''\nfunction semanticCategoryKeys(query: string): string[] {\n  const keys: string[] = [];\n  const rules: Array<[RegExp, string[]]> = [\n    [/\\b(?:restaurant|essen|hunger|hungrig\\w*|food|cafe)\\b/u, ["restaurant", "bar grill"]],\n    [/\\b(?:apotheke|pharmacy|drugstore|chemist|medikament\\w*|tablett\\w*)\\b/u, ["pharmacy"]],\n    [/\\b(?:zahnarzt|dentist|dental|zahn)\\b/u, ["dentist"]],\n    [/\\b(?:arzt|doktor|doctor|klinik|clinic|krankenhaus|hospital)\\b/u, ["clinic", "krankenhaus"]],\n    [/\\b(?:tierarzt|veterinarian|veterinary|vet clinic)\\b/u, ["veterinarian"]],\n    [/(?:\\b(?:handyreparatur|phone repair|mobile repair|smartphone repair)\\b|\\b(?:handy|smartphone)\\b.{0,40}\\b(?:kaputt|reparier\\w*|display|akku)\\b)/u, ["phone repair"]],\n    [/\\b(?:friseur|haarsalon|hairdresser|barber|salon)\\b/u, ["friseur"]],\n    [/\\b(?:supermarkt|supermarket|lebensmittel|grocery)\\b/u, ["lebensmittelgeschaft"]],\n    [/\\b(?:autowerkstatt|kfz werkstatt|car repair|auto repair|garage)\\b/u, ["autowerkstatt"]],\n    [/\\b(?:elektriker|electrician)\\b/u, ["elektriker"]],\n    [/\\b(?:handwerker|klempner|plumber|schlusseldienst|locksmith)\\b/u, ["handwerker", "elektriker"]],\n    [/\\b(?:behorde|amt|verwaltung|rathaus|polizei|police|immigration|government office)\\b/u, ["offentliche anlaufstelle"]],\n    [/\\b(?:notar|notary|rechtsanwalt|lawyer)\\b/u, ["rechts und notariatsburo"]],\n    [/\\b(?:tempel|temple)\\b/u, ["tempel"]],\n  ];\n  for (const [pattern, values] of rules) if (pattern.test(query)) keys.push(...values);\n  return [...new Set(keys)];\n}\n'''
-            s=s.replace(anchor,anchor+semantic)
-          s=s.replace('    const requestedCategory = normalizeCategory(query);\n    const maximum = Math.min(50, Math.max(1, Math.floor(limit)));','    const requestedCategory = normalizeCategory(query);\n    const semanticCategories = semanticCategoryKeys(normalizedQuery);\n    const maximum = Math.min(50, Math.max(1, Math.floor(limit)));')
-          s=s.replace('          place.normalizedCategory.includes(requestedCategory) ||\n          (tokens.length > 0 && matchedTokens.length > 0)','          place.normalizedCategory.includes(requestedCategory) ||\n          semanticCategories.includes(place.normalizedCategory) ||\n          (tokens.length > 0 && matchedTokens.length > 0)')
-          p.write_text(s)
-      - name: Commit hardening
+          root = Path('artifacts/api-server/data/seed')
+          files = ['naklua.json','wongamat.json','central.json','pratumnak.json','jomtien.json','darkside.json']
+          expected = {'naklua':15,'wongamat':1,'central':10,'pratumnak':6,'jomtien':14,'darkside':4}
+          ids=[]; total=verified=pending=0
+          for fn in files:
+            data=json.loads((root/fn).read_text(encoding='utf-8'))
+            assert data['schemaVersion']==1
+            region=fn[:-5]
+            assert len(data['places'])==expected[region], (region,len(data['places']))
+            for place in data['places']:
+              assert place['region']==region
+              assert place['id'] not in ids
+              ids.append(place['id'])
+              assert place['name'].strip() and place['address'].strip()
+              assert place['sources']
+              for src in place['sources']:
+                assert src['url'].startswith('https://')
+              total += 1
+              verified += place['status']=='verified'
+              pending += place['status']=='pending'
+          assert total==50 and verified==49 and pending==1 and len(set(ids))==50
+          print(f'SEED_OK total={total} verified={verified} pending={pending} unique={len(set(ids))}')
+      - name: Commit corrected catalog seed
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/src/lib/sandraKnowledge.ts artifacts/api-server/src/lib/sandraCatalog.ts
-          git commit -m "Sandra V2: harden semantic local search and region matching"
+          git add artifacts/api-server/data/seed/central.json
+          git commit -m "Sandra V2: correct Central catalog seed identity"
           git push
