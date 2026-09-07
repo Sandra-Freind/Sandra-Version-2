@@ -156,11 +156,13 @@ export function detectRegion(message: string): SandraRegion | null {
   if (REGION_PATTERNS.jomtien.test(text) && !BORDER_ROAD_PATTERN.test(text)) {
     return "jomtien";
   }
-  if (REGION_PATTERNS.darkside.test(text) && !BORDER_ROAD_PATTERN.test(text)) {
-    return "darkside";
-  }
+  // Explicit Central Pattaya beats the administrative district name Nong Prue
+  // that appears in many Central Pattaya postal addresses.
   if (REGION_PATTERNS.central.test(text) && !SOUTH_PATTAYA_PATTERN.test(text)) {
     return "central";
+  }
+  if (REGION_PATTERNS.darkside.test(text) && !BORDER_ROAD_PATTERN.test(text)) {
+    return "darkside";
   }
   return null;
 }
@@ -223,18 +225,18 @@ export function extractLocalSearchIntent(message: string): LocalSearchIntent {
   const categoryRules: Array<[string, RegExp]> = [
     [
       "Apotheke / pharmacy / drugstore",
-      /(?:\b(?:apotheke|pharmacy|drugstore|chemist)\b|ยา|รานยา)/u,
+      /(?:\b(?:apotheke|pharmacy|drugstore|chemist|medikament\w*|tablett\w*)\b|ยา|รานยา)/u,
     ],
     ["Zahnarzt / dentist", /\b(?:zahnarzt|dentist|dental|ทันต)\b/u],
     ["Arzt / Klinik", /\b(?:arzt|doctor|clinic|klinik(?:en)?|hospital|โรงพยาบาล|แพทย์)\b/u],
     ["Tierarzt / veterinarian", /(?:\b(?:tierarzt|veterinarian|veterinary|vet clinic)\b|สัตวแพทย)/u],
-    ["Restaurant / Essen", /(?:\b(?:restaurant|essen|food|cafe|café)\b|อาหาร)/u],
+    ["Restaurant / Essen", /(?:\b(?:restaurant|essen|hunger|hungrig\w*|food|cafe|café)\b|อาหาร)/u],
     [
       "Handyreparatur",
       /\b(?:handyreparatur|mobiltelefonreparatur|phone repair|mobile repair)\b|\b(?:handy|mobiltelefon|smartphone|handydisplay)\b.{0,50}\b(?:reparier\w*|kaputt|display|akku)\b/u,
     ],
     ["Autowerkstatt", /\b(?:autowerkstatt|kfz werkstatt|car repair|auto repair|garage)\b/u],
-    ["Lebensmittelgeschäft", /(?:\b(?:lebensmittel|supermarkt|supermarket|grocery)\b|ตลาด|รานขายของชา)/u],
+    ["Lebensmittelgeschäft", /(?:\b(?:lebensmittel(?:geschaft)?|supermarkt|supermarket|grocery)\b|ตลาด|รานขายของชา)/u],
     ["Friseur", /\b(?:friseur|haarsalon|hairdresser|barber|salon)\b/u],
     ["Reinigungsdienst", /\b(?:reinigung|reinigungsdienst|cleaning service|cleaner)\b/u],
     ["Handwerker", /\b(?:handwerker|elektriker|klempner|schlüsseldienst|electrician|plumber|locksmith)\b/u],
@@ -263,6 +265,11 @@ export function extractLocalSearchIntent(message: string): LocalSearchIntent {
       /\b(?:kinderfreundlich\w*|kindfreundlich\w*|kinder|family friendly|children)\b/u,
     ],
     ["jetzt geöffnet", /\b(?:jetzt geoffnet\w*|open now|geoffnet jetzt)\b/u],
+    ["günstig", /\b(?:gunstig\w*|billig\w*|preiswert\w*|cheap|affordable|budget)\b/u],
+    ["ruhig", /\b(?:ruhig\w*|quiet|calm)\b/u],
+    ["direkt am Strand", /\b(?:direkt am strand|am strand|beachfront|beach front|seafront|sea front|oceanfront)\b/u],
+    ["hundefreundlich", /\b(?:hundefreundlich\w*|hund erlaubt|dog friendly|pet friendly|dog_friendly)\b/u],
+    ["nicht Walking Street", /\b(?:keine walking street|nicht walking street|ohne walking street|no walking street|no_walking_street)\b/u],
   ];
   const criteria = criterionRules.flatMap(([label, pattern]) =>
     pattern.test(text) ? [label] : [],
@@ -295,14 +302,20 @@ export function candidateMatchesIntent(
   ) {
     return false;
   }
+  // Specific subtypes must not degrade into a generic category match.
+  if (/\b(?:klempner|plumber)\b/u.test(request) && !/\b(?:klempner|plumber)\b/u.test(candidate)) return false;
+  if (/\b(?:elektriker|electrician)\b/u.test(request) && !/\b(?:elektriker|electrician|electrical)\b/u.test(candidate)) return false;
+  if (/\b(?:schlusseldienst|locksmith)\b/u.test(request) && !/\b(?:schlusseldienst|locksmith|schlusselservice|key service)\b/u.test(candidate)) return false;
+  if (/\b(?:polizei|police)\b/u.test(request) && !/\b(?:polizei|police)\b/u.test(candidate)) return false;
+  if (/\bimmigration\b/u.test(request) && !/\bimmigration\b/u.test(candidate)) return false;
   const requiredCategoryPatterns: Array<[string, RegExp]> = [
     ["Zahnarzt / dentist", /\b(?:zahnarzt|dentist|dental|ทันต)\b/u],
     ["Arzt / Klinik", /\b(?:arzt|doctor|clinic|klinik(?:en)?|hospital|แพทย์|โรงพยาบาล)\b/u],
     ["Tierarzt / veterinarian", /(?:\b(?:tierarzt|veterinarian|veterinary|vet clinic)\b|สัตวแพทย)/u],
-    ["Restaurant / Essen", /(?:\b(?:restaurant|cafe|café|food)\b|อาหาร)/u],
+    ["Restaurant / Essen", /(?:\b(?:restaurant|cafe|café|food|bar\s*&\s*grill)\b|อาหาร)/u],
     ["Handyreparatur", /\b(?:handyreparatur|phone repair|mobile repair|smartphone repair)\b/u],
     ["Autowerkstatt", /\b(?:autowerkstatt|car repair|auto repair|garage|service center|service centre)\b/u],
-    ["Lebensmittelgeschäft", /(?:\b(?:lebensmittel|supermarkt|supermarket|grocery)\b|ตลาด|รานขายของชา)/u],
+    ["Lebensmittelgeschäft", /(?:\b(?:lebensmittel(?:geschaft)?|supermarkt|supermarket|grocery)\b|ตลาด|รานขายของชา)/u],
     ["Friseur", /\b(?:friseur|haarsalon|hairdresser|barber|salon)\b/u],
     ["Reinigungsdienst", /\b(?:reinigung|cleaning service|cleaner)\b/u],
     ["Handwerker", /\b(?:handwerker|elektriker|klempner|schlüsseldienst|electrician|plumber|locksmith)\b/u],
@@ -342,6 +355,11 @@ export function candidateMatchesIntent(
         verifiedHours,
       )
     ) return false;
+    if (criterion === "günstig" && !/\b(?:gunstig\w*|billig\w*|preiswert\w*|cheap|affordable|budget|lokale preise)\b/u.test(verifiedDetails)) return false;
+    if (criterion === "ruhig" && !/\b(?:ruhig\w*|quiet|calm|entspannt\w*)\b/u.test(verifiedDetails)) return false;
+    if (criterion === "direkt am Strand" && !/\b(?:direkt am strand|am strand|beachfront|beach front|seafront|sea front|oceanfront)\b/u.test(verifiedDetails)) return false;
+    if (criterion === "hundefreundlich" && !/\b(?:hundefreundlich\w*|hund erlaubt|dog friendly|pet friendly)\b/u.test(verifiedDetails)) return false;
+    if (criterion === "nicht Walking Street" && /\bwalking street\b/u.test(candidate)) return false;
   }
   return true;
 }

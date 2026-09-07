@@ -127,6 +127,28 @@ const QUERY_STOP_WORDS = new Set([
   "central", "pratumnak", "jomtien", "jomtian", "darkside", "east",
 ]);
 
+function semanticCategoryKeys(query: string): string[] {
+  const keys: string[] = [];
+  const rules: Array<[RegExp, string[]]> = [
+    [/\b(?:restaurant|essen|hunger|hungrig\w*|food|cafe)\b/u, ["restaurant", "bar grill"]],
+    [/\b(?:apotheke|pharmacy|drugstore|chemist|medikament\w*|tablett\w*)\b/u, ["pharmacy"]],
+    [/\b(?:zahnarzt|dentist|dental|zahn)\b/u, ["dentist"]],
+    [/\b(?:arzt|doktor|doctor|klinik|clinic|krankenhaus|hospital)\b/u, ["clinic", "krankenhaus"]],
+    [/\b(?:tierarzt|veterinarian|veterinary|vet clinic)\b/u, ["veterinarian"]],
+    [/(?:\b(?:handyreparatur|phone repair|mobile repair|smartphone repair)\b|\b(?:handy|smartphone)\b.{0,40}\b(?:kaputt|reparier\w*|display|akku)\b)/u, ["phone repair"]],
+    [/\b(?:friseur|haarsalon|hairdresser|barber|salon)\b/u, ["friseur"]],
+    [/\b(?:supermarkt|supermarket|lebensmittel|grocery)\b/u, ["lebensmittelgeschaft"]],
+    [/\b(?:autowerkstatt|kfz werkstatt|car repair|auto repair|garage)\b/u, ["autowerkstatt"]],
+    [/\b(?:elektriker|electrician)\b/u, ["elektriker"]],
+    [/\b(?:handwerker|klempner|plumber|schlusseldienst|locksmith)\b/u, ["handwerker", "elektriker"]],
+    [/\b(?:behorde|amt|verwaltung|rathaus|polizei|police|immigration|government office)\b/u, ["offentliche anlaufstelle"]],
+    [/\b(?:notar|notary|rechtsanwalt|lawyer)\b/u, ["rechts und notariatsburo"]],
+    [/\b(?:tempel|temple)\b/u, ["tempel"]],
+  ];
+  for (const [pattern, values] of rules) if (pattern.test(query)) keys.push(...values);
+  return [...new Set(keys)];
+}
+
 /** Locale-independent matching key that also joins common Thai/English spelling variants. */
 export function normalizeCatalogText(value: string): string {
   return value
@@ -452,6 +474,7 @@ export class SandraCatalog {
       .split(" ")
       .filter((token) => token.length >= 3 && !QUERY_STOP_WORDS.has(token));
     const requestedCategory = normalizeCategory(query);
+    const semanticCategories = semanticCategoryKeys(normalizedQuery);
     const maximum = Math.min(50, Math.max(1, Math.floor(limit)));
     const now = isoNow();
     const data = await this.read();
@@ -478,6 +501,7 @@ export class SandraCatalog {
         return (
           place.normalizedName.includes(normalizedQuery) ||
           place.normalizedCategory.includes(requestedCategory) ||
+          semanticCategories.includes(place.normalizedCategory) ||
           (tokens.length > 0 && matchedTokens.length > 0)
         );
       })
