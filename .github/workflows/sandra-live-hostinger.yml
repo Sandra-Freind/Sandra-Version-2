@@ -1,0 +1,142 @@
+name: Sandra V2 Hostinger live acceptance
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SANDRA_LIVE_URL: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wait for live deployment and verified Jomtien catalog
+        shell: python
+        run: |
+          import json, time, uuid, urllib.request, urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              chars='0123456789abcdefghijklmnopqrstuvwxyz'; out=''
+              while n: n,r=divmod(n,36); out=chars[r]+out
+              return out or '0'
+          def sid(): return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg, session=None, timeout=70):
+              data=json.dumps({'mode':'chat','message':msg}).encode()
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=data,headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
+              with urllib.request.urlopen(req,timeout=timeout) as r: return r.status,json.loads(r.read().decode())
+          ready=False; last=''
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen(BASE+'/api/healthz',timeout=15) as r:
+                      assert r.status==200
+                  status,body=post('Restaurant in Jomtien')
+                  last=json.dumps(body,ensure_ascii=False)
+                  if status==200 and body.get('maps') and 'keinen ausreichend geprüften Eintrag' not in body.get('reply',''):
+                      ready=True; print('LIVE_DEPLOYMENT_READY attempt=',attempt+1); break
+              except Exception as e:
+                  last=repr(e)
+              print('waiting for Hostinger deployment',attempt+1,'last=',last[:500])
+              time.sleep(20)
+          assert ready, 'Hostinger did not expose the new verified catalog in time: '+last[:1000]
+      - name: Live six-region finder, natural language, Maps and isolation matrix
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error,re
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              chars='0123456789abcdefghijklmnopqrstuvwxyz'; out=''
+              while n: n,r=divmod(n,36); out=chars[r]+out
+              return out or '0'
+          def sid(): return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg,session=None,timeout=75):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
+              with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,json.loads(r.read().decode())
+          tests=[
+            ('naklua','Restaurant in Naklua'),('naklua','Ich brauche einen Tierarzt in Naklua'),('naklua','Wo ist ein Elektriker in Naklua?'),
+            ('wongamat','Restaurant in Wongamat'),
+            ('central','Ich brauche einen Supermarkt in Central Pattaya'),('central','Zahnarzt in Central Pattaya'),('central','Mein Handy ist kaputt in Central Pattaya'),
+            ('pratumnak','Restaurant in Pratumnak'),('pratumnak','Apotheke in Pratumnak'),
+            ('jomtien','Ich habe Hunger in Jomtien'),('jomtien','Ich brauche Medikamente in Jomtien'),('jomtien','Polizei in Jomtien'),('jomtien','Immigration in Jomtien'),
+            ('darkside','Zahnarzt in East Pattaya'),('darkside','Tierarzt in Darkside'),('darkside','Restaurant in Darkside'),
+          ]
+          passn=0
+          forbidden={
+            'naklua':['Wongamat','Jomtien','Pratumnak','Central Pattaya','Darkside','East Pattaya'],
+            'wongamat':['Naklua','Jomtien','Pratumnak','Central Pattaya','Darkside','East Pattaya'],
+            'central':['Jomtien Beach','Pratumnak','Wongamat','Darkside','East Pattaya','Na Jomtien','South Pattaya'],
+            'pratumnak':['Jomtien Beach','Wongamat','Darkside','East Pattaya','Na Jomtien'],
+            'jomtien':['Na Jomtien','Wongamat','Darkside','East Pattaya','South Pattaya'],
+            'darkside':['Jomtien Beach','Wongamat','Pratumnak','Na Jomtien'],
+          }
+          for region,msg in tests:
+              status,body=post(msg)
+              assert status==200,(msg,status,body)
+              assert isinstance(body.get('reply'),str) and body['reply'].strip(),(msg,body)
+              maps=body.get('maps',[]); assert isinstance(maps,list) and len(maps)<=3,(msg,maps)
+              # These cases are intentionally chosen from categories that exist in the verified seed.
+              assert maps,(msg,body)
+              for m in maps:
+                  assert m.get('url','').startswith('https://www.google.com/maps/search/?api=1&query='),(msg,m)
+              text=body['reply']
+              for bad in forbidden[region]:
+                  # Do not flag source URLs or the generic freshness notice; only addresses/result body.
+                  assert bad.lower() not in text.lower(),(msg,'cross-region marker',bad,text)
+              passn+=1
+          print(f'LIVE_FINDER_OK cases={passn} regions=6')
+      - name: Live conversation context and preference follow-ups
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          session=f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':session},method='POST')
+              with urllib.request.urlopen(req,timeout=75) as r:return r.status,json.loads(r.read().decode())
+          sequence=['Ich bin in Jomtien','Ich suche ein Restaurant','direkt am Strand','der erste','Telefonnummer?','noch eine']
+          bodies=[]
+          for msg in sequence:
+              status,body=post(msg); assert status==200,(msg,status,body); bodies.append((msg,body))
+          beach=bodies[2][1]
+          assert beach.get('maps'),beach
+          assert 'jomtien' in beach.get('reply','').lower(),beach
+          assert 'strand' in beach.get('reply','').lower() or 'beach' in beach.get('reply','').lower(),beach
+          selected=bodies[3][1]; assert selected.get('reply'),selected
+          detail=bodies[4][1]; assert detail.get('reply'),detail
+          more=bodies[5][1]; assert 'jomtien' in more.get('reply','').lower() or 'keine weiteren' in more.get('reply','').lower(),more
+          print('LIVE_CONTEXT_OK turns=6 preference=beachfront selection=first detail=phone more=1')
+      - name: Live validation and boundary behavior
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def valid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def raw(body,session=None):
+              h={'Content-Type':'application/json'}
+              if session is not None:h['x-sandra-session']=session
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps(body).encode(),headers=h,method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:return r.status,json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:return e.code,json.loads(e.read().decode())
+          cases=[
+            ({'mode':'chat','message':'Hallo'},None,400,'SANDRA_SESSION_REQUIRED'),
+            ({'mode':'chat','message':'Hallo'},'invalid',400,'SANDRA_SESSION_REQUIRED'),
+            ({'mode':'chat','message':''},valid(),400,'SANDRA_CHAT_INPUT'),
+            ({'mode':'wrong','message':'Hallo'},valid(),400,'SANDRA_CHAT_INPUT'),
+            ({'mode':'chat','message':'x'*4001},valid(),400,'SANDRA_CHAT_INPUT'),
+          ]
+          for body,s,expect,code in cases:
+              status,out=raw(body,s); assert status==expect,(status,out); assert out.get('code')==code,out
+          print('LIVE_VALIDATION_OK cases=5')
