@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
@@ -9,8 +10,23 @@ globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
+function resolveBuildSha() {
+  const envSha = process.env.SANDRA_BUILD_SHA?.trim() || process.env.GITHUB_SHA?.trim();
+  if (envSha && /^[0-9a-f]{40}$/i.test(envSha)) return envSha.toLowerCase();
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: artifactDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim().toLowerCase();
+  } catch {
+    return "unknown";
+  }
+}
+
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
+  const buildSha = resolveBuildSha();
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
@@ -21,6 +37,9 @@ async function buildAll() {
     outdir: distDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
+    define: {
+      __SANDRA_BUILD_SHA__: JSON.stringify(buildSha),
+    },
     external: [
       "zod",
       "*.node",
