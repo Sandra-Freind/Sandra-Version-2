@@ -1,3 +1,5 @@
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { detectRegion, type SandraRegion } from './sandraKnowledge';
 import { matchSandraMasterDomains } from './sandraMasterTaxonomy';
 
@@ -69,6 +71,40 @@ export type ConversationState = {
 const states = new Map<string, ConversationState>();
 const STATE_TTL_MS = 24 * 60 * 60 * 1000;
 const CURRENT_LOCATION_TTL_MS = 8 * 60 * 60 * 1000;
+const SESSION_STATE_DIR = process.env.SANDRA_SESSION_STATE_DIR?.trim() || join(process.cwd(), '.sandra-session-state');
+
+function persistedStatePath(session: string): string {
+  // Session IDs have already been validated by the route. Replacing anything
+  // unexpected keeps this helper safe if it is ever reused elsewhere.
+  return join(SESSION_STATE_DIR, `${session.replace(/[^0-9a-z-]/giu, '_')}.json`);
+}
+
+function loadPersistedState(session: string, now: number): ConversationState | null {
+  try {
+    const parsed = JSON.parse(readFileSync(persistedStatePath(session), 'utf8')) as ConversationState;
+    if (!parsed || typeof parsed.lastMessageAt !== 'number' || now - parsed.lastMessageAt > STATE_TTL_MS) {
+      try { unlinkSync(persistedStatePath(session)); } catch {}
+      return null;
+    }
+    if (!parsed.futureLocations || !Array.isArray(parsed.activePreferences)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistConversationState(session: string, state: ConversationState): void {
+  try {
+    mkdirSync(SESSION_STATE_DIR, { recursive: true });
+    const target = persistedStatePath(session);
+    const temp = `${target}.${process.pid}.${Date.now()}.tmp`;
+    writeFileSync(temp, JSON.stringify(state), { encoding: 'utf8', mode: 0o600 });
+    renameSync(temp, target);
+  } catch {
+    // In-memory state remains available if the host filesystem is temporarily
+    // unavailable. Persistence is a resilience layer, not a hard dependency.
+  }
+}
 
 function normalize(value: string): string {
   return value.toLocaleLowerCase('de-DE').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/ß/gu, 'ss');
@@ -78,6 +114,11 @@ export function getConversationState(session: string): ConversationState {
   const now = Date.now();
   const current = states.get(session);
   if (current && now - current.lastMessageAt <= STATE_TTL_MS) return current;
+  const restored = loadPersistedState(session, now);
+  if (restored) {
+    states.set(session, restored);
+    return restored;
+  }
   const created: ConversationState = {
     futureLocations: {},
     timeContext: 'unspecified',
@@ -86,6 +127,7 @@ export function getConversationState(session: string): ConversationState {
     lastMessageAt: now,
   };
   states.set(session, created);
+  persistConversationState(session, created);
   return created;
 }
 
@@ -228,6 +270,7 @@ export function updateConversationState(
     state.currentIntent = state.pendingIntent;
     state.pendingIntent = undefined;
     state.conversationPhase = 'SEARCHING_LOCAL';
+    persistConversationState(session, state);
     return state;
   }
 
@@ -262,6 +305,7 @@ export function updateConversationState(
     state.conversationPhase = 'IDLE';
   }
 
+  persistConversationState(session, state);
   return state;
 }
 
