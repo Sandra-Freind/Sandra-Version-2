@@ -38,7 +38,20 @@ export const SANDRA_MASTER_TAXONOMY: SandraMasterDomain[] = [
   { id:'emergency', label:'Notfall & Sicherheit', terms:['notfall','unfall','polizei','tourist police','rettungsdienst','feuerwehr','pass verloren','handy gestohlen','wallet gestohlen','panne','abschleppen','tiernotfall','versicherungsschaden'] },
 ];
 
+function normalizeTaxonomyText(value: string): string {
+  return value.toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/gu, '').replace(/ß/gu, 'ss');
+}
+
+function taxonomyTermMatches(text: string, term: string): boolean {
+  const normalizedTerm = normalizeTaxonomyText(term).trim();
+  if (!normalizedTerm) return false;
+  const escaped = normalizedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return new RegExp(`(?:^|[^\p{L}\p{N}])${escaped}(?=$|[^\p{L}\p{N}])`, 'u').test(text);
+}
+
 export function matchSandraMasterDomains(message: string): SandraMasterDomain[] {
-  const text = message.toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/gu,'').replace(/ß/gu,'ss');
-  return SANDRA_MASTER_TAXONOMY.filter(domain => domain.terms.some(term => text.includes(term.normalize('NFD').replace(/[\u0300-\u036f]/gu,'').replace(/ß/gu,'ss'))));
+  const text = normalizeTaxonomyText(message);
+  return SANDRA_MASTER_TAXONOMY.filter(domain =>
+    domain.terms.some(term => taxonomyTermMatches(text, term)),
+  );
 }

@@ -421,7 +421,7 @@ export function outOfScopeReply(message: string): string | null {
     return "Ich bin gern freundlich an deiner Seite 😊, aber ich bin nicht als Zeitvertreib gedacht. Sag mir einfach, was du in Pattaya brauchst oder suchst, dann kümmere ich mich darum.";
   }
   if (
-    /\b(wetter|regen|temperatur|nachrichten|politik|sport(?:ergebnis)?|borsenkurs|aktienkurs|uhrzeit|wie spat|welches datum)\b/u.test(
+    /\b(?:wetter|regen|temperatur|nachrichten|politik\w*|politisch\w*|partei\w*|bundesregierung|bundeskanzler|wahl(?:en|kampf)?|krieg\w*|geopolitik\w*|regierung\w*|prasident\w*|nato|ukraine|russland|borsenkurs|aktienkurs|uhrzeit|wie spat|welches datum)\b/u.test(
       text,
     )
   ) {

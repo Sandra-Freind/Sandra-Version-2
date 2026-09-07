@@ -1308,6 +1308,15 @@ router.post("/chat", requireSession, rateLimit("chat", 30), async (req, res) => 
   if (!validateChatInput(req, res)) return;
   const session = sessionKey(req);
   const originalMessage = req.body.message;
+
+  // Block forbidden/general/off-scope requests before they can mutate local
+  // search state or inherit a previous local place/region.
+  const earlyUnsupportedReply = outOfScopeReply(originalMessage);
+  if (earlyUnsupportedReply) {
+    res.json({ reply: earlyUnsupportedReply, maps: [] });
+    return;
+  }
+
   await hydrateSessionContext(req);
   const state = updateConversationState(session, originalMessage);
   rememberSearchRegion(session, originalMessage);
@@ -1357,11 +1366,6 @@ router.post("/chat", requireSession, rateLimit("chat", 30), async (req, res) => 
   const askLocation = pendingLocationReply(state);
   if (askLocation) {
     res.json({ reply: askLocation, maps: [] });
-    return;
-  }
-  const unsupportedReply = outOfScopeReply(originalMessage);
-  if (unsupportedReply) {
-    res.json({ reply: unsupportedReply, maps: [] });
     return;
   }
   const wrongRegionReply = unsupportedRegionReply(originalMessage);
