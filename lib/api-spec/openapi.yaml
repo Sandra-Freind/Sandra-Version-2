@@ -38,7 +38,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^v2-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+            pattern: '^v3-[0-9a-z]{8,12}-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
       requestBody:
         required: true
         content:
@@ -92,7 +92,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^v2-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+            pattern: '^v3-[0-9a-z]{8,12}-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
       requestBody:
         required: true
         content:
@@ -219,4 +219,3 @@ components:
       required:
         - code
         - message
-
