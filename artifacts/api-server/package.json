@@ -7,7 +7,7 @@
     "dev": "npm run build && npm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -b ../../lib/api-zod ../../lib/db && tsc -p tsconfig.json --noEmit",
     "test": "rm -rf .test && esbuild src/lib/sandraCatalog.test.ts src/lib/conversationState.test.ts src/lib/sandraPolicy.test.ts --bundle --platform=node --format=esm --outdir=.test && node --test .test/sandraCatalog.test.js .test/conversationState.test.js .test/sandraPolicy.test.js test/sandraKnowledge.test.mjs"
   },
   "dependencies": {
