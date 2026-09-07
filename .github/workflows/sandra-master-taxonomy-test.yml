@@ -1,0 +1,29 @@
+name: Sandra V2 master taxonomy regression
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  taxonomy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Validate Pattaya master taxonomy coverage
+        shell: bash
+        run: |
+          node <<'JS'
+          const fs=require('fs');
+          const p='artifacts/api-server/src/lib/sandraMasterTaxonomy.ts';
+          const s=fs.readFileSync(p,'utf8');
+          const domains=[...s.matchAll(/id:'([^']+)'/g)].map(x=>x[1]);
+          const required=['food','shopping','health','specialists','dental','diagnostics','rehab','mental_health','care','wellness','fitness','leisure','nightlife','transport','vehicle','home_services','household','property','government','legal_finance','tech','pets','family','business','postal','events','social','language','emergency'];
+          for(const x of required) if(!domains.includes(x)) throw new Error('missing domain '+x);
+          const must=['restaurant','supermarkt','zahnarzt','kardiologe','mrt','physiotherapie','psychologe','rollstuhl','fitnessstudio','padel','muay thai','tauchen','strand','wasserpark','kino','bar','taxi','autowerkstatt','elektriker','wäscherei','condo mieten','immigration','anwalt','handyreparatur','tierarzt','babysitter','firmengründung','copyshop','hochzeit','stammtisch','dolmetscher','notfall'];
+          for(const x of must) if(!s.toLocaleLowerCase('de-DE').includes(x)) throw new Error('missing intent '+x);
+          if(domains.length<29) throw new Error('taxonomy too small '+domains.length);
+          console.log('MASTER_TAXONOMY_OK domains='+domains.length+' representative_intents='+must.length);
+          JS
