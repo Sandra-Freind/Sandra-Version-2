@@ -7,9 +7,6 @@ permissions:
 jobs:
   conversation:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: artifacts/api-server
     steps:
       - uses: actions/checkout@v4
         with:
@@ -17,8 +14,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install --no-audit --no-fund
-      - run: npm run build
+      - name: Install workspace dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build API
+        run: pnpm --dir artifacts/api-server build
       - name: Synthetic pagination and selection integration
         env:
           PORT: '3110'
@@ -26,6 +27,7 @@ jobs:
           REPLIT_EXPO_SESSION_SECRET: deep-test-expo
           SANDRA_API_BASE_URL: http://127.0.0.1:3210/
           SANDRA_DATA_DIR: /tmp/sandra-deep-data
+        working-directory: artifacts/api-server
         run: |
           rm -rf /tmp/sandra-deep-data
           mkdir -p /tmp/sandra-deep-data
