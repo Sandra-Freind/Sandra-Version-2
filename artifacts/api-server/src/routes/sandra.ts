@@ -1108,30 +1108,43 @@ async function runLocalOriginalInterpreter(
   if (!apiKey) return null;
 
   const sourceLanguage = target === "th" ? "de" : "th";
-  const transcriptionForm = new FormData();
-  transcriptionForm.append(
-    "file",
-    new Blob([new Uint8Array(audio)], { type: mime }),
-    fileName,
-  );
-  transcriptionForm.append("model", "gpt-4o-mini-transcribe");
-  transcriptionForm.append("language", sourceLanguage);
+  let heard = "";
 
-  const transcriptionResponse = await fetch(
-    "https://api.openai.com/v1/audio/transcriptions",
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: transcriptionForm,
-      signal: AbortSignal.timeout(25_000),
-    },
-  );
-  if (!transcriptionResponse.ok) return { ok: false, error: "speech" };
-  const transcription = (await transcriptionResponse.json()) as {
-    text?: unknown;
-  };
-  const heard =
-    typeof transcription.text === "string" ? transcription.text.trim() : "";
+  // Speech recognition is the most failure-prone part of the interpreter.
+  // Try the fast transcription model first and transparently retry once with
+  // the higher-capability transcription model before returning a speech error.
+  for (const model of ["gpt-4o-mini-transcribe", "gpt-4o-transcribe"] as const) {
+    const transcriptionForm = new FormData();
+    transcriptionForm.append(
+      "file",
+      new Blob([new Uint8Array(audio)], { type: mime }),
+      fileName,
+    );
+    transcriptionForm.append("model", model);
+    transcriptionForm.append("language", sourceLanguage);
+
+    try {
+      const transcriptionResponse = await fetch(
+        "https://api.openai.com/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: transcriptionForm,
+          signal: AbortSignal.timeout(25_000),
+        },
+      );
+      if (!transcriptionResponse.ok) continue;
+      const transcription = (await transcriptionResponse.json()) as {
+        text?: unknown;
+      };
+      heard =
+        typeof transcription.text === "string" ? transcription.text.trim() : "";
+      if (heard) break;
+    } catch {
+      // Retry with the alternate transcription model below.
+    }
+  }
+
   if (!heard) return { ok: false, error: "speech" };
 
   const sourceName = target === "th" ? "German" : "Thai";
