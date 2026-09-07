@@ -1,8 +1,8 @@
 # Sandra Version 2 – Finalisierung und Teststatus
 
-Stand: 2026-09-06
+Stand: 2026-09-07
 
-Diese Version ist ausschließlich aus dem zuletzt gelieferten Sandra-Backup (Projekt/Daten + 12 Bibliotheks-ZIPs) hervorgegangen. Sandra Version 1 wurde nicht verändert.
+Diese Version ist ausschließlich aus dem zuletzt gelieferten Sandra-Version-2-Projekt hervorgegangen. Sandra Version 1 wurde nicht verändert.
 
 ## Ergänzt
 
@@ -16,39 +16,29 @@ Diese Version ist ausschließlich aus dem zuletzt gelieferten Sandra-Backup (Pro
 - Maps-/Routen-Folgefrage zum ausgewählten Treffer
 - wärmere, freundschaftliche und situationsabhängig empathische Formulierungen
 - klare Begrenzung: Sandra bleibt Helferin/Finderin und wird nicht zum Zeitvertreib-/Smalltalk-Chatbot
+- umfassende Pattaya-Mastertaxonomie als internes Verständnisvokabular, nicht als sichtbares Menü
+- Mastertaxonomie mit Gastronomie, Einkaufen/Produkten, Medizin, Fachärzten, Zahnmedizin, Diagnostik, Reha, psychischer Gesundheit, Pflege, Wellness, Sport, Freizeit, Nachtleben, Transport, Fahrzeugen, Handwerk/Hausservice, Haushalt, Immobilien, Behörden/Visa, Recht/Finanzen/Versicherungen, Technik, Haustieren, Familie/Bildung, Business, Post/Versand, Veranstaltungen, sozialen Angeboten, Sprache/Übersetzung und Notfall/Sicherheit
+- Routing der Mastertaxonomie durch den Gesprächszustand, damit natürliche Formulierungen wie „meine Waschmaschine ist kaputt“, „ich brauche einen Lungenarzt“ oder „wo kann ich Padel spielen“ als Pattaya-Hilfeauftrag erkannt werden
 
 ## Unverändert erhalten
 
 - exakt sechs Regionen: Naklua, Wongamat, Central Pattaya, Pratumnak, Jomtien, Darkside / East Pattaya
-- verifizierter Katalog, Review, Audit und Backups
 - bestehende Recherche- und Validierungslogik
 - vorhandener forwardJson-Sicherheits-/Validierungsweg
 - kompletter Deutsch↔Thai-Dolmetscherblock
 - keine GPS-Funktion und keine eigene Navigation
+- maximal drei erste Vorschläge
 
 ## Teststatus
 
-- 32/32 automatisierte Katalog-, Regions-, Such-, Kontext-, Empathie- und Scope-Tests bestanden
-- API TypeScript: bestanden, nachdem die beim ZIP-Backup fehlenden Workspace-Verknüpfungen rekonstruiert und die Deklarationen frisch gebaut wurden
-- Mobile TypeScript: bestanden, nachdem die Workspace-Deklarationen frisch gebaut wurden
-- API-Produktionsbuild: bestanden
-- API-Serverstart: bestanden
-- /api/healthz: HTTP 200, {"status":"ok"}
-- Route sandra.ts mit esbuild gebündelt: bestanden
-- GPS-Code-Scan: keine aktive GPS-/expo-location-/Geolocation-Nutzung gefunden
-- Interpreterblock und bestehender forwardJson-Block wurden gegenüber dem gelieferten V2-Stand nicht verändert
+- Mastertaxonomie-Coverage-Test: bestanden
+- Integration der Mastertaxonomie in den Gesprächszustand: Workflow bestanden
+- Deep-Conversation-Regression auf dem Integrationsstand: bestanden
+- Deutsch↔Thai-Live-Interpreter-Roundtrip auf Hostinger: bestanden
+- Malformed-Audio-Grenztests: bestanden
+- ein Live-Protokolltest scheiterte nicht an Sandra-Code, sondern an einem GitHub-Runner-Netzwerkfehler `Network is unreachable`; dieser Test wird auf dem finalen Integrationsstand erneut ausgeführt
+- vollständige Live-Region/Kategorie-, Kontext-, Scope-, Protokoll-, Interpreter-, Build- und Regressionstests werden nach diesem Commit erneut auf dem finalen Integrationsstand gestartet
 
-## Beim Test gefundene und behobene Fehler
+## Qualitätsziel
 
-1. Ein impliziter Folgesatz wie „noch zwei“ konnte nach „jetzt Naklua, heute Abend Jomtien“ wieder auf den aktuellen Ort Naklua zurückfallen. Behoben: der aktive Zeitkontext bleibt bei solchen Folgefragen erhalten.
-2. „Der zweite ist mir zu teuer“ konnte den ursprünglichen Suchauftrag verlieren. Behoben: der aktuelle lokale Suchauftrag wird zusammen mit der neuen Präferenz weitergeführt.
-3. Zeitvertreib-Anfragen wie „Erzähl mir einen Witz“ konnten theoretisch an die alte Chat-Pipeline weitergereicht werden. Behoben: freundliche Rückführung auf Sandras Pattaya-Helferzweck.
-
-## Noch nicht als echter Live-Nachweis bestätigt
-
-- reale OpenAI-Webrecherche über das öffentliche Netz
-- echtes Hostinger-Deployment
-- Mikrofon → STT → Übersetzung → TTS → Lautsprecher auf einem realen Handy
-- kompletter Mobile-Deployment-Build in dieser Umgebung; das Build-Skript verlangt pnpm als ausführbaren Systembefehl und eine Deployment-Domain
-
-Diese Punkte sind Live-/Deployment-Verifikation, keine noch fehlenden Sandra-Kernfunktionen.
+Sandra ist keine Chatpartnerin zum Zeitvertreib. Sie ist die freundliche, ortskundige Pattaya-Helferin für Urlauber, Langzeitbesucher, Expats und Auswanderer. Der Nutzer spricht natürlich; Sandra erkennt Bedarf, Gebiet, Zeit, Präferenzen und Folgekontext und sucht konkrete, möglichst verifizierte Hilfe. Dynamische lokale Fakten werden nicht erfunden.
