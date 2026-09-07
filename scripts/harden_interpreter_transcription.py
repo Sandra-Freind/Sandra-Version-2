@@ -2,12 +2,55 @@ from pathlib import Path
 
 route = Path('artifacts/api-server/src/routes/sandra.ts')
 text = route.read_text(encoding='utf-8')
-old = '''  const sourceLanguage = target === "th" ? "de" : "th";\n  const transcriptionForm = new FormData();\n  transcriptionForm.append(\n    "file",\n    new Blob([new Uint8Array(audio)], { type: mime }),\n    fileName,\n  );\n  transcriptionForm.append("model", "gpt-4o-mini-transcribe");\n  transcriptionForm.append("language", sourceLanguage);\n\n  const transcriptionResponse = await fetch(\n    "https://api.openai.com/v1/audio/transcriptions",\n    {\n      method: "POST",\n      headers: { Authorization: `Bearer ${apiKey}` },\n      body: transcriptionForm,\n      signal: AbortSignal.timeout(25_000),\n    },\n  );\n  if (!transcriptionResponse.ok) return { ok: false, error: "speech" };\n  const transcription = (await transcriptionResponse.json()) as {\n    text?: unknown;\n  };\n  const heard =\n    typeof transcription.text === "string" ? transcription.text.trim() : "";\n  if (!heard) return { ok: false, error: "speech" };\n'''
-new = '''  const sourceLanguage = target === "th" ? "de" : "th";\n  let heard = "";\n\n  // Speech recognition is the most failure-prone part of the interpreter.\n  // Try the fast transcription model first and transparently retry once with\n  // the higher-capability transcription model before returning a speech error.\n  for (const model of ["gpt-4o-mini-transcribe", "gpt-4o-transcribe"] as const) {\n    const transcriptionForm = new FormData();\n    transcriptionForm.append(\n      "file",\n      new Blob([new Uint8Array(audio)], { type: mime }),\n      fileName,\n    );\n    transcriptionForm.append("model", model);\n    transcriptionForm.append("language", sourceLanguage);\n\n    try {\n      const transcriptionResponse = await fetch(\n        "https://api.openai.com/v1/audio/transcriptions",\n        {\n          method: "POST",\n          headers: { Authorization: `Bearer ${apiKey}` },\n          body: transcriptionForm,\n          signal: AbortSignal.timeout(25_000),\n        },\n      );\n      if (!transcriptionResponse.ok) continue;\n      const transcription = (await transcriptionResponse.json()) as {\n        text?: unknown;\n      };\n      heard =\n        typeof transcription.text === "string" ? transcription.text.trim() : "";\n      if (heard) break;\n    } catch {\n      // Retry with the alternate transcription model below.\n    }\n  }\n\n  if (!heard) return { ok: false, error: "speech" };\n'''
-if old not in text:
-    raise SystemExit('Expected interpreter transcription block not found')
-text = text.replace(old, new, 1)
+start_marker = '  const sourceLanguage = target === "th" ? "de" : "th";'
+end_marker = '  const sourceName = target === "th" ? "German" : "Thai";'
+start = text.find(start_marker)
+end = text.find(end_marker, start)
+if start < 0 or end < 0:
+    raise SystemExit('Interpreter transcription markers not found')
+new = '''  const sourceLanguage = target === "th" ? "de" : "th";
+  let heard = "";
+
+  // Speech recognition is the most failure-prone part of the interpreter.
+  // Try the fast transcription model first and transparently retry once with
+  // the higher-capability transcription model before returning a speech error.
+  for (const model of ["gpt-4o-mini-transcribe", "gpt-4o-transcribe"] as const) {
+    const transcriptionForm = new FormData();
+    transcriptionForm.append(
+      "file",
+      new Blob([new Uint8Array(audio)], { type: mime }),
+      fileName,
+    );
+    transcriptionForm.append("model", model);
+    transcriptionForm.append("language", sourceLanguage);
+
+    try {
+      const transcriptionResponse = await fetch(
+        "https://api.openai.com/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: transcriptionForm,
+          signal: AbortSignal.timeout(25_000),
+        },
+      );
+      if (!transcriptionResponse.ok) continue;
+      const transcription = (await transcriptionResponse.json()) as {
+        text?: unknown;
+      };
+      heard =
+        typeof transcription.text === "string" ? transcription.text.trim() : "";
+      if (heard) break;
+    } catch {
+      // Retry with the alternate transcription model below.
+    }
+  }
+
+  if (!heard) return { ok: false, error: "speech" };
+
+'''
+text = text[:start] + new + text[end:]
 route.write_text(text, encoding='utf-8')
-assert 'gpt-4o-transcribe' in text
+assert text.count('gpt-4o-transcribe') >= 1
 assert 'for (const model of ["gpt-4o-mini-transcribe", "gpt-4o-transcribe"] as const)' in text
 print('SANDRA_INTERPRETER_TRANSCRIPTION_HARDENING_OK')
