@@ -1,7 +1,9 @@
-# Keep Sandra's production catalog in the repository so Hostinger deployments
-# start with the verified local data. Runtime locks/backups/discovery state stay local.
+# Keep Sandra's production catalog seed in the repository so Hostinger deployments
+# start with verified local data. Runtime locks/backups/discovery state stay local.
 artifacts/api-server/data/*
 !artifacts/api-server/data/sandra-catalog.json
+!artifacts/api-server/data/seed/
+!artifacts/api-server/data/seed/*.json
 artifacts/api-server/data/sandra-catalog.json.lock
 artifacts/api-server/data/sandra-catalog.json.backups/
 artifacts/api-server/data/sandra-discovery-state.json
