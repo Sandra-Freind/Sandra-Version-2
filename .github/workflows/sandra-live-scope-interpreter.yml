@@ -1,0 +1,149 @@
+name: Sandra V2 live scope and interpreter acceptance
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  scope-interpreter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SANDRA_LIVE_URL: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wait for live Hostinger deployment
+        shell: python
+        run: |
+          import time, urllib.request
+          base='https://darkgray-finch-693806.hostingersite.com'
+          last=''
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen(base+'/api/healthz',timeout=15) as r:
+                      if r.status==200:
+                          print('LIVE_HEALTH_OK attempt=',attempt+1)
+                          break
+              except Exception as e:
+                  last=repr(e)
+              time.sleep(20)
+          else:
+              raise AssertionError('Hostinger health check failed: '+last)
+      - name: Live Pattaya-only helper and human-dialogue boundaries
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg,session=None):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
+              with urllib.request.urlopen(req,timeout=75) as r:return r.status,json.loads(r.read().decode())
+          # Friendly, short, task-oriented dialogue.
+          for msg in ['Hallo Sandra','Wer bist du?','Was kannst du?','Danke']:
+              st,b=post(msg); assert st==200,(msg,st,b); reply=b.get('reply','')
+              assert 1 <= len(reply) <= 420,(msg,len(reply),reply)
+              assert not b.get('maps'),(msg,b)
+          # Sandra must not become a leisure chatbot.
+          chatter=['Erzähl mir einen Witz','Mir ist langweilig, unterhalte mich','Lass uns einfach ein bisschen chatten','Erzähl mir eine lange Geschichte']
+          for msg in chatter:
+              st,b=post(msg); assert st==200,(msg,st,b); reply=b.get('reply','').lower()
+              assert not b.get('maps'),(msg,b)
+              assert len(reply) <= 420,(msg,len(reply),reply)
+              assert ('pattaya' in reply or 'zeitvertreib' in reply or 'nicht als' in reply),(msg,reply)
+          # General knowledge/current-affairs requests stay outside Sandra's job.
+          offscope=['Wie wird das Wetter morgen?','Wer ist der Bundeskanzler von Deutschland?','Erzähl mir die neuesten politischen Nachrichten','Wie spät ist es in Berlin?']
+          for msg in offscope:
+              st,b=post(msg); assert st==200,(msg,st,b); reply=b.get('reply','').lower()
+              assert not b.get('maps'),(msg,b)
+              assert 'pattaya' in reply,(msg,reply)
+              assert len(reply) <= 420,(msg,len(reply),reply)
+          # Outside-Pattaya searches must never return foreign-region map results.
+          outside=['Restaurant in Bangkok','Hotel in Phuket','Apotheke in Chiang Mai','Zahnarzt in Hua Hin']
+          for msg in outside:
+              st,b=post(msg); assert st==200,(msg,st,b)
+              assert not b.get('maps'),(msg,b)
+              assert len(b.get('reply','')) <= 700,(msg,b)
+          print('LIVE_SCOPE_DIALOGUE_OK greetings=4 chatter=4 offscope=4 outside=4')
+      - name: Live multi-turn Pattaya helper dialogue
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          s=f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def post(msg):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':s},method='POST')
+              with urllib.request.urlopen(req,timeout=75) as r:return r.status,json.loads(r.read().decode())
+          seq=['Ich bin in Jomtien','Ich suche ein Restaurant','der zweite','Telefonnummer?','Danke']
+          out=[]
+          for msg in seq:
+              st,b=post(msg); assert st==200,(msg,st,b); assert 1<=len(b.get('reply',''))<=1800,(msg,b); out.append(b)
+          assert out[1].get('maps'),out[1]
+          assert 'jomtien' in out[1].get('reply','').lower(),out[1]
+          assert out[2].get('reply'),out[2]
+          assert out[3].get('reply'),out[3]
+          assert len(out[4].get('reply','')) <= 120,out[4]
+          print('LIVE_HUMAN_HELPER_CONTEXT_OK turns=5')
+      - name: Install speech generator for interpreter test
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng
+      - name: Live interpreter validation boundaries
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          def sid():return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          def raw(body,session):
+              req=urllib.request.Request(BASE+'/api/sandra/interpreter/audio',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','x-sandra-session':session},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:return r.status,json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:return e.code,json.loads(e.read().decode())
+          cases=[
+              ({'audioBase64':'%%%%','target':'th','mime':'audio/wav','fileName':'bad.wav'},sid()),
+              ({'audioBase64':'QUJDRA==','target':'xx','mime':'audio/wav','fileName':'bad.wav'},sid()),
+              ({'audioBase64':'QUJDRA==','target':'th','mime':'audio/wav','fileName':'bad.wav'},sid()),
+          ]
+          for body,s in cases:
+              st,out=raw(body,s); assert st==400,(st,out); assert out.get('code')=='SANDRA_INTERPRETER_INPUT',out
+          print('LIVE_INTERPRETER_BOUNDARIES_OK cases=3')
+      - name: Live German to Thai microphone interpreter end-to-end
+        shell: bash
+        run: |
+          set -euo pipefail
+          espeak-ng -v de -s 125 -w /tmp/sandra-de.wav 'Wo ist die nächste Apotheke?'
+          python - <<'PY'
+          import base64,json,time,uuid,urllib.request
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def b36(n):
+              c='0123456789abcdefghijklmnopqrstuvwxyz';o=''
+              while n:n,r=divmod(n,36);o=c[r]+o
+              return o or '0'
+          session=f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
+          audio=base64.b64encode(open('/tmp/sandra-de.wav','rb').read()).decode()
+          body={'audioBase64':audio,'target':'th','mime':'audio/wav','fileName':'sandra-de.wav'}
+          req=urllib.request.Request(BASE+'/api/sandra/interpreter/audio',data=json.dumps(body).encode(),headers={'Content-Type':'application/json','x-sandra-session':session},method='POST')
+          with urllib.request.urlopen(req,timeout=110) as r:
+              status=r.status; out=json.loads(r.read().decode())
+          assert status==200,(status,out)
+          assert out.get('ok') is True,out
+          heard=(out.get('heard') or '').strip(); translated=(out.get('translated') or '').strip(); spoken=(out.get('audio') or '').strip()
+          assert len(heard)>=3,out
+          assert len(translated)>=2,out
+          assert any('\u0e00' <= ch <= '\u0e7f' for ch in translated),out
+          assert len(spoken)>=100,out
+          base64.b64decode(spoken,validate=True)
+          print('LIVE_INTERPRETER_DE_TH_OK heard=',heard[:120],' translated=',translated[:120],' audio_b64_chars=',len(spoken))
+          PY
