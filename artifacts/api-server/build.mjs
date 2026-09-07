@@ -3,46 +3,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { gunzipSync } from "node:zlib";
+import { rm } from "node:fs/promises";
 
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
-async function ensureCatalogSeed() {
-  const dataDir = path.resolve(artifactDir, "data");
-  const catalogPath = path.join(dataDir, "sandra-catalog.json");
-  try {
-    await access(catalogPath);
-    return;
-  } catch {
-    // Fresh production checkouts do not have runtime data yet.
-  }
-
-  const seedPath = path.join(dataDir, "seed", "sandra-catalog.seed.json");
-  const seed = JSON.parse(await readFile(seedPath, "utf8"));
-  if (seed?.encoding !== "gzip-base64" || typeof seed?.data !== "string") {
-    throw new Error("Sandra catalog seed is invalid.");
-  }
-
-  const decoded = gunzipSync(Buffer.from(seed.data, "base64"));
-  const parsed = JSON.parse(decoded.toString("utf8"));
-  if (parsed?.schemaVersion !== 1 || !Array.isArray(parsed?.places) || parsed.places.length === 0) {
-    throw new Error("Sandra catalog seed does not contain a usable catalog.");
-  }
-
-  await mkdir(dataDir, { recursive: true });
-  const temporaryPath = `${catalogPath}.seed-${process.pid}`;
-  await writeFile(temporaryPath, decoded);
-  await rename(temporaryPath, catalogPath);
-  console.log(`Sandra catalog restored from seed (${parsed.places.length} places).`);
-}
-
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
-  await ensureCatalogSeed();
 
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
