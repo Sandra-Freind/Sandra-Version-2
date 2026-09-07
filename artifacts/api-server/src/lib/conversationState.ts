@@ -255,6 +255,11 @@ export function inferIntent(message: string): SandraIntent {
   for (const [pattern, category] of rules) {
     if (pattern.test(text)) return { kind: 'local_search', category, raw: message, confidence: 'high' };
   }
+  // Explicit follow-up phrases describe the already active result/task. They must
+  // not be reinterpreted by a weaker taxonomy match as an unrelated new domain.
+  if (isTaskContinuation(message)) {
+    return { kind: 'conversation', raw: message, confidence: 'high' };
+  }
   const masterMatches = matchSandraMasterDomains(message);
   if (masterMatches.length > 0) {
     return { kind: 'local_search', category: masterMatches[0].id, raw: message, confidence: 'high' };
