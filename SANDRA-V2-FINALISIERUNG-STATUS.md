@@ -19,6 +19,8 @@ Diese Version ist ausschließlich aus dem zuletzt gelieferten Sandra-Version-2-P
 - umfassende Pattaya-Mastertaxonomie als internes Verständnisvokabular, nicht als sichtbares Menü
 - Mastertaxonomie mit Gastronomie, Einkaufen/Produkten, Medizin, Fachärzten, Zahnmedizin, Diagnostik, Reha, psychischer Gesundheit, Pflege, Wellness, Sport, Freizeit, Nachtleben, Transport, Fahrzeugen, Handwerk/Hausservice, Haushalt, Immobilien, Behörden/Visa, Recht/Finanzen/Versicherungen, Technik, Haustieren, Familie/Bildung, Business, Post/Versand, Veranstaltungen, sozialen Angeboten, Sprache/Übersetzung und Notfall/Sicherheit
 - Routing der Mastertaxonomie durch den Gesprächszustand, damit natürliche Formulierungen wie „meine Waschmaschine ist kaputt“, „ich brauche einen Lungenarzt“ oder „wo kann ich Padel spielen“ als Pattaya-Hilfeauftrag erkannt werden
+- Härtung des Standort-Kontexts bei möglichen Server-/Prozesswechseln
+- gestaffelte Wiederholungen des Deutsch↔Thai-Spracherkenners bei transienten `speech`-Fehlern
 
 ## Unverändert erhalten
 
@@ -34,10 +36,9 @@ Diese Version ist ausschließlich aus dem zuletzt gelieferten Sandra-Version-2-P
 - Mastertaxonomie-Coverage-Test: bestanden
 - Integration der Mastertaxonomie in den Gesprächszustand: Workflow bestanden
 - Deep-Conversation-Regression auf dem Integrationsstand: bestanden
-- Deutsch↔Thai-Live-Interpreter-Roundtrip auf Hostinger: bestanden
-- Malformed-Audio-Grenztests: bestanden
-- ein Live-Protokolltest scheiterte nicht an Sandra-Code, sondern an einem GitHub-Runner-Netzwerkfehler `Network is unreachable`; dieser Test wird auf dem finalen Integrationsstand erneut ausgeführt
-- vollständige Live-Region/Kategorie-, Kontext-, Scope-, Protokoll-, Interpreter-, Build- und Regressionstests werden nach diesem Commit erneut auf dem finalen Integrationsstand gestartet
+- Politik-/Offscope-Sperre wurde als Negativgrenze ergänzt und muss ohne lokale Treffer/Maps reagieren
+- vorherige Deutsch↔Thai-Live-Interpreter-Roundtrips zeigten sporadische `speech`-Fehler; die Resilienzkorrektur ist gebaut und auf `main` eingespielt
+- vollständige Live-Region/Kategorie-, Kontext-, Scope-, Protokoll-, Interpreter-, Build- und Regressionstests werden nach der Resilienzkorrektur erneut auf dem finalen Integrationsstand ausgeführt
 
 ## Qualitätsziel
 
