@@ -416,7 +416,7 @@ export function shouldUseLocalWebFallback(
 export function outOfScopeReply(message: string): string | null {
   const text = normalized(message);
   if (
-    /\b(?:witz|witze|geschichte erzahlen|erzahl mir eine geschichte|unterhalte mich|langeweile|smalltalk|plaudern|einfach chatten)\b/u.test(text)
+    /\b(?:witz\w*|geschichte\w*|erzahl\w*|unterhalt\w*|langeweile|langweilig\w*|smalltalk|plauder\w*|chat\w*)\b/u.test(text)
   ) {
     return "Ich bin gern freundlich an deiner Seite 😊, aber ich bin nicht als Zeitvertreib gedacht. Sag mir einfach, was du in Pattaya brauchst oder suchst, dann kümmere ich mich darum.";
   }
