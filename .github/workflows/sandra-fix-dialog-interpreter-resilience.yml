@@ -1,7 +1,6 @@
 name: Sandra V2 apply dialogue and interpreter resilience fix
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: write
 concurrency:
@@ -26,14 +25,14 @@ jobs:
           s=p.read_text(encoding='utf-8')
 
           old='''  const askLocation = pendingLocationReply(state);\n  if (askLocation) {\n    res.json({ reply: askLocation, maps: [] });\n    return;\n  }'''
-          new='''  const askLocation = pendingLocationReply(state);\n  // If the local Node context was lost during a restart or between host\n  // instances, do not prematurely ask for the region here. The deterministic\n  // upstream PHP session may still hold the user's previously stated region.\n  // forwardJson remains the safety gate: without any resolvable Pattaya region\n  // it returns the six-region prompt and never exposes unscoped results.\n  if (askLocation && state.currentIntent?.kind !== "local_search") {\n    res.json({ reply: askLocation, maps: [] });\n    return;\n  }'''
+          new='''  const askLocation = pendingLocationReply(state);\n  if (askLocation && state.currentIntent?.kind !== "local_search") {\n    res.json({ reply: askLocation, maps: [] });\n    return;\n  }'''
           if old in s:
               s=s.replace(old,new,1)
           elif new not in s:
               raise SystemExit('location guard target not found')
 
           old_loop='''      for (let speechRetry = 0; speechRetry < 2; speechRetry += 1) {\n        const retryBoundary = `----SandraMobileRetry${Date.now().toString(16)}${speechRetry}`;'''
-          new_loop='''      // Back off between retries. The upstream interpreter historically maps\n      // transient transcription/provider throttling to the generic `speech`\n      // result; immediate retries simply hit the same transient condition.\n      const speechRetryDelays = [750, 1_500, 3_000];\n      for (let speechRetry = 0; speechRetry < speechRetryDelays.length; speechRetry += 1) {\n        await new Promise((resolve) => setTimeout(resolve, speechRetryDelays[speechRetry] ?? 750));\n        const retryBoundary = `----SandraMobileRetry${Date.now().toString(16)}${speechRetry}`;'''
+          new_loop='''      const speechRetryDelays = [750, 1_500, 3_000];\n      for (let speechRetry = 0; speechRetry < speechRetryDelays.length; speechRetry += 1) {\n        await new Promise((resolve) => setTimeout(resolve, speechRetryDelays[speechRetry] ?? 750));\n        const retryBoundary = `----SandraMobileRetry${Date.now().toString(16)}${speechRetry}`;'''
           if old_loop in s:
               s=s.replace(old_loop,new_loop,1)
           elif new_loop not in s:
