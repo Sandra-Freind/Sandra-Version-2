@@ -4,6 +4,7 @@ import {
   type CatalogPlace,
   type CatalogSource,
 } from "./sandraCatalog";
+import { ensureCatalogSeed } from "./sandraCatalogSeed";
 import {
   candidateMatchesIntent,
   extractLocalSearchIntent,
@@ -16,6 +17,10 @@ import {
 
 const dataDirectory =
   process.env.SANDRA_DATA_DIR?.trim() || path.resolve(process.cwd(), "data");
+
+// Hostinger deploys tracked repository files but the mutable catalog is runtime
+// state. Rebuild it from the verified regional seed only when it is absent.
+ensureCatalogSeed(dataDirectory);
 
 export const sandraCatalog = new SandraCatalog(
   path.join(dataDirectory, "sandra-catalog.json"),
