@@ -209,7 +209,12 @@ function availableDetail(value?: string): string {
 
 const rememberedPlaces = new Map<
   string,
-  { places: VerifiedPlace[]; expiresAt: number }
+  {
+    places: VerifiedPlace[];
+    lastShown: VerifiedPlace[];
+    selected?: VerifiedPlace;
+    expiresAt: number;
+  }
 >();
 const REMEMBERED_PLACE_TTL_MS = 6 * 60 * 60 * 1_000;
 
@@ -314,6 +319,8 @@ function rememberVerifiedPlaces(session: string, places: VerifiedPlace[]): void 
   }, []);
   rememberedPlaces.set(session, {
     places: merged.slice(-20),
+    lastShown: places.slice(-3),
+    selected: undefined,
     expiresAt: now + REMEMBERED_PLACE_TTL_MS,
   });
 
@@ -499,20 +506,30 @@ function selectRememberedPlace(
   const named = remembered.places.find((candidate) =>
     normalized.includes(candidate.title.toLocaleLowerCase("de-DE")),
   );
-  if (named) return named;
+  if (named) {
+    remembered.selected = named;
+    return named;
+  }
   const ordinalMatch = intentText.match(
     /\b(?:der|die|das|den|dem|vom|von|nummer|nr\.?)?\s*(erste[nrsm]?|zweite[nrsm]?|dritte[nrsm]?|[1-3])(?:\s+vorschlag)?\b/u,
   );
-  if (!ordinalMatch) return remembered.places.length === 1
-    ? remembered.places[0]
-    : undefined;
+  if (!ordinalMatch) {
+    if (remembered.selected) return remembered.selected;
+    if (remembered.lastShown.length === 1) {
+      remembered.selected = remembered.lastShown[0];
+      return remembered.selected;
+    }
+    return undefined;
+  }
   const ordinal = ordinalMatch[1] ?? "";
   const index = /^(?:erst|1)/u.test(ordinal)
     ? 0
     : /^(?:zweit|2)/u.test(ordinal)
       ? 1
       : 2;
-  return remembered.places[index];
+  const selected = remembered.lastShown[index];
+  if (selected) remembered.selected = selected;
+  return selected;
 }
 
 function placeDetailReply(
@@ -601,6 +618,15 @@ function placeDetailReply(
   if (/\b(?:gefallt mir|passt|nehme ich|nehmen wir|den nehme|die nehme|das nehme)\b/u.test(intentText)) {
     return {
       reply: `Okay 😊 ${place.title} passt. Wenn du noch Adresse, Telefonnummer, Öffnungszeiten oder den Google-Maps-Link brauchst, sag einfach kurz Bescheid.`,
+      maps: [place],
+    };
+  }
+
+  if (
+    /\b(?:der|die|das|den|dem|vom|von|nummer|nr\.?)?\s*(?:erste[nrsm]?|zweite[nrsm]?|dritte[nrsm]?|[1-3])(?:\s+vorschlag)?\b/u.test(intentText)
+  ) {
+    return {
+      reply: `Okay 😊 Du meinst ${place.title}. Wenn du Adresse, Telefonnummer, Öffnungszeiten oder den Google-Maps-Link brauchst, sag einfach kurz Bescheid.`,
       maps: [place],
     };
   }
