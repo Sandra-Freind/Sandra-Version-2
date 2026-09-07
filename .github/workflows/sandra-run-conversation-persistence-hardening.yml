@@ -18,6 +18,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm run build
+          npx esbuild src/lib/conversationState.ts --bundle --platform=node --format=esm --outfile=/tmp/conversationState.mjs
       - name: Verify persisted session survives process restart
         working-directory: artifacts/api-server
         shell: bash
@@ -26,14 +27,14 @@ jobs:
           rm -rf /tmp/sandra-session-persistence-test
           export SANDRA_SESSION_STATE_DIR=/tmp/sandra-session-persistence-test
           node --input-type=module <<'NODE'
-          const mod = await import('./dist/lib/conversationState.js');
+          const mod = await import('file:///tmp/conversationState.mjs');
           const s='v3-persist-test-session';
           const a=mod.updateConversationState(s,'Ich bin in Naklua');
           if (mod.resolveRelevantRegion(a)!=='naklua') throw new Error('first process did not store Naklua');
           console.log('PROCESS1_REGION_OK');
           NODE
           node --input-type=module <<'NODE'
-          const mod = await import('./dist/lib/conversationState.js');
+          const mod = await import('file:///tmp/conversationState.mjs');
           const s='v3-persist-test-session';
           const a=mod.updateConversationState(s,'Ich suche eine Apotheke');
           if (mod.resolveRelevantRegion(a)!=='naklua') throw new Error('restart lost Naklua');
