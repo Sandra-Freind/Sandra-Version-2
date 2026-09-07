@@ -41,7 +41,6 @@ async function buildAll() {
       __SANDRA_BUILD_SHA__: JSON.stringify(buildSha),
     },
     external: [
-      "zod",
       "*.node",
       "sharp",
       "better-sqlite3",
