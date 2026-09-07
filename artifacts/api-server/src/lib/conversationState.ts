@@ -1,6 +1,13 @@
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { detectRegion, type SandraRegion } from './sandraKnowledge';
+import {
+  detectRegion,
+  outOfScopeReply,
+  urgentHealthReply,
+  unsupportedRegionReply,
+  unsupportedSearchLanguageReply,
+  type SandraRegion,
+} from './sandraKnowledge';
 import { matchSandraMasterDomains } from './sandraMasterTaxonomy';
 
 export type SandraTimeContext =
@@ -38,10 +45,19 @@ export type ConversationPhase =
   | 'WAITING_FOR_MORE_DECISION'
   | 'HEALTH_TRIAGE'
   | 'EMERGENCY'
-  | 'TRANSLATION_MODE';
+  | 'TRANSLATION_MODE'
+  | 'BLOCKED';
+
+export type SandraIntentKind =
+  | 'local_search'
+  | 'conversation'
+  | 'emergency'
+  | 'blocked'
+  | 'unsupported_language'
+  | 'unsupported_region';
 
 export type SandraIntent = {
-  kind: string;
+  kind: SandraIntentKind;
   category?: string;
   raw: string;
   confidence: 'high' | 'medium' | 'low';
@@ -74,19 +90,29 @@ const CURRENT_LOCATION_TTL_MS = 8 * 60 * 60 * 1000;
 const SESSION_STATE_DIR = process.env.SANDRA_SESSION_STATE_DIR?.trim() || join(process.cwd(), '.sandra-session-state');
 
 function persistedStatePath(session: string): string {
-  // Session IDs have already been validated by the route. Replacing anything
-  // unexpected keeps this helper safe if it is ever reused elsewhere.
   return join(SESSION_STATE_DIR, `${session.replace(/[^0-9a-z-]/giu, '_')}.json`);
+}
+
+function isStructurallyValidState(value: unknown): value is ConversationState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Partial<ConversationState>;
+  return (
+    typeof state.lastMessageAt === 'number' &&
+    typeof state.conversationPhase === 'string' &&
+    typeof state.timeContext === 'string' &&
+    !!state.futureLocations &&
+    typeof state.futureLocations === 'object' &&
+    Array.isArray(state.activePreferences)
+  );
 }
 
 function loadPersistedState(session: string, now: number): ConversationState | null {
   try {
-    const parsed = JSON.parse(readFileSync(persistedStatePath(session), 'utf8')) as ConversationState;
-    if (!parsed || typeof parsed.lastMessageAt !== 'number' || now - parsed.lastMessageAt > STATE_TTL_MS) {
+    const parsed: unknown = JSON.parse(readFileSync(persistedStatePath(session), 'utf8'));
+    if (!isStructurallyValidState(parsed) || now - parsed.lastMessageAt > STATE_TTL_MS) {
       try { unlinkSync(persistedStatePath(session)); } catch {}
       return null;
     }
-    if (!parsed.futureLocations || !Array.isArray(parsed.activePreferences)) return null;
     return parsed;
   } catch {
     return null;
@@ -101,8 +127,8 @@ function persistConversationState(session: string, state: ConversationState): vo
     writeFileSync(temp, JSON.stringify(state), { encoding: 'utf8', mode: 0o600 });
     renameSync(temp, target);
   } catch {
-    // In-memory state remains available if the host filesystem is temporarily
-    // unavailable. Persistence is a resilience layer, not a hard dependency.
+    // Persistence is a resilience layer. A single request may continue in memory,
+    // but the next request will again prefer the newest valid persisted snapshot.
   }
 }
 
@@ -110,25 +136,64 @@ function normalize(value: string): string {
   return value.toLocaleLowerCase('de-DE').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/ß/gu, 'ss');
 }
 
-export function getConversationState(session: string): ConversationState {
-  const now = Date.now();
-  const current = states.get(session);
-  if (current && now - current.lastMessageAt <= STATE_TTL_MS) return current;
-  const restored = loadPersistedState(session, now);
-  if (restored) {
-    states.set(session, restored);
-    return restored;
-  }
-  const created: ConversationState = {
+function freshState(now: number): ConversationState {
+  return {
     futureLocations: {},
     timeContext: 'unspecified',
     activePreferences: [],
     conversationPhase: 'IDLE',
     lastMessageAt: now,
   };
+}
+
+export function getConversationState(session: string): ConversationState {
+  const now = Date.now();
+  const current = states.get(session);
+  const currentIsFresh = !!current && now - current.lastMessageAt <= STATE_TTL_MS;
+  const restored = loadPersistedState(session, now);
+
+  // Hostinger may route consecutive requests to different Node processes. Always
+  // compare the local snapshot with the persisted one and use whichever is newer.
+  // This prevents a stale process-local Map from overwriting a newer location,
+  // intent or preference written by another worker.
+  if (restored && (!currentIsFresh || !current || restored.lastMessageAt > current.lastMessageAt)) {
+    states.set(session, restored);
+    return restored;
+  }
+  if (currentIsFresh && current) return current;
+
+  const created = freshState(now);
   states.set(session, created);
   persistConversationState(session, created);
   return created;
+}
+
+export function hydrateConversationLocation(session: string, locationContext: string): ConversationState {
+  const state = getConversationState(session);
+  const region = detectRegion(locationContext);
+  if (!region) return state;
+  const now = Date.now();
+  const currentIsFresh =
+    !!state.currentLocation && now - state.currentLocation.timestamp <= CURRENT_LOCATION_TTL_MS;
+  if (!currentIsFresh) {
+    state.currentLocation = {
+      region,
+      timestamp: now,
+      confidence: 'medium',
+      source: 'session_context',
+    };
+    state.lastMessageAt = now;
+    persistConversationState(session, state);
+  }
+  return state;
+}
+
+export function setConversationPhase(session: string, phase: ConversationPhase): ConversationState {
+  const state = getConversationState(session);
+  state.conversationPhase = phase;
+  state.lastMessageAt = Date.now();
+  persistConversationState(session, state);
+  return state;
 }
 
 export function detectTimeContext(message: string): SandraTimeContext {
@@ -140,8 +205,6 @@ export function detectTimeContext(message: string): SandraTimeContext {
   if (/\b(?:fruhstuck|fruhstucken)\b/u.test(text)) return 'breakfast';
   if (/\b(?:mittagessen|zu mittag)\b/u.test(text)) return 'lunch';
   if (/\b(?:abendessen|dinner)\b/u.test(text)) return 'dinner';
-  // Future markers must win when one message states both the current and a later location,
-  // e.g. "Ich bin jetzt in Naklua, später bin ich in Jomtien".
   if (/\b(?:gleich|nachher|spater)\b/u.test(text)) return 'soon';
   if (/\b(?:jetzt|gerade|im moment|sofort)\b/u.test(text)) return 'now';
   if (/\b(?:heute)\b/u.test(text)) return 'today';
@@ -161,21 +224,36 @@ export function detectPreferences(message: string): SandraPreference[] {
 }
 
 export function inferIntent(message: string): SandraIntent {
+  // One canonical intent gateway: safety/scope decisions are classified before
+  // local-search rules so a blocked topic can never inherit a previous place.
+  if (urgentHealthReply(message)) {
+    return { kind: 'emergency', category: 'health_emergency', raw: message, confidence: 'high' };
+  }
+  if (outOfScopeReply(message)) {
+    return { kind: 'blocked', category: 'out_of_scope', raw: message, confidence: 'high' };
+  }
+  if (unsupportedSearchLanguageReply(message)) {
+    return { kind: 'unsupported_language', raw: message, confidence: 'high' };
+  }
+  if (unsupportedRegionReply(message)) {
+    return { kind: 'unsupported_region', raw: message, confidence: 'high' };
+  }
+
   const text = normalize(message);
-  const rules: Array<[RegExp, string, string]> = [
-    [/\b(?:apotheke|pharmacy|medikament|tabletten)\b/u, 'local_search', 'apotheken'],
-    [/\b(?:zahnarzt|dentist|zahn)\b/u, 'local_search', 'zahnarzt'],
-    [/\b(?:arzt|doktor|klinik|krankenhaus|hospital)\b/u, 'local_search', 'aerzte'],
-    [/\b(?:restaurant|essen|hunger|fruhstuck|mittagessen|abendessen)\b/u, 'local_search', 'restaurants'],
-    [/\b(?:hotel|unterkunft|zimmer)\b/u, 'local_search', 'hotels'],
-    [/\b(?:taxi|bolt|grab|bus|transport|mietwagen|roller)\b/u, 'local_search', 'transport'],
-    [/\b(?:werkstatt|abschlepp\w*|pannenhilfe)\b/u, 'local_search', 'fahrzeughilfe'],
-    [/\b(?:handwerker|klimaanlage|schlussel\w*|schloss\w*|reparatur|handy .*kaputt)\b/u, 'local_search', 'dienstleistungen'],
-    [/\b(?:immigration|visum|visa|behorde)\b/u, 'local_search', 'behoerden'],
-    [/\b(?:unternehmen|freizeit|ausflug|tennis|fitness|strand)\b/u, 'local_search', 'freizeit'],
+  const rules: Array<[RegExp, string]> = [
+    [/\b(?:apotheke|pharmacy|medikament|tabletten)\b/u, 'apotheken'],
+    [/\b(?:zahnarzt|dentist|zahn)\b/u, 'zahnarzt'],
+    [/\b(?:arzt|doktor|klinik|krankenhaus|hospital)\b/u, 'aerzte'],
+    [/\b(?:restaurant|essen|hunger|fruhstuck|mittagessen|abendessen)\b/u, 'restaurants'],
+    [/\b(?:hotel|unterkunft|zimmer)\b/u, 'hotels'],
+    [/\b(?:taxi|bolt|grab|bus|transport|mietwagen|roller)\b/u, 'transport'],
+    [/\b(?:werkstatt|abschlepp\w*|pannenhilfe)\b/u, 'fahrzeughilfe'],
+    [/\b(?:handwerker|klimaanlage|schlussel\w*|schloss\w*|reparatur|handy .*kaputt)\b/u, 'dienstleistungen'],
+    [/\b(?:immigration|visum|visa|behorde)\b/u, 'behoerden'],
+    [/\b(?:unternehmen|freizeit|ausflug|tennis|fitness|strand)\b/u, 'freizeit'],
   ];
-  for (const [pattern, kind, category] of rules) {
-    if (pattern.test(text)) return { kind, category, raw: message, confidence: 'high' };
+  for (const [pattern, category] of rules) {
+    if (pattern.test(text)) return { kind: 'local_search', category, raw: message, confidence: 'high' };
   }
   const masterMatches = matchSandraMasterDomains(message);
   if (masterMatches.length > 0) {
@@ -188,7 +266,6 @@ function looksLikeBareLocation(message: string): boolean {
   const text = normalize(message).replace(/[.!?,;:]+/gu, ' ').trim();
   return detectRegion(text) !== null && text.split(/\s+/u).length <= 5;
 }
-
 
 function splitTemporalRegions(message: string): { current: SandraRegion | null; future: SandraRegion | null } {
   const normalizedMessage = normalize(message);
@@ -261,8 +338,30 @@ export function updateConversationState(
       state.futureLocations[time] = locationState;
     } else if (explicitCurrentLocation(message) || looksLikeBareLocation(message) || state.waitingFor === 'location') {
       state.currentLocation = locationState;
+      // An explicit present-location statement ends a previously sticky future
+      // time context. Follow-up searches now resolve to the newly stated place.
+      if (time === 'unspecified') state.timeContext = 'now';
     }
   }
+
+  const intent = inferIntent(message);
+  if (intent.kind === 'emergency') {
+    state.currentIntent = intent;
+    state.pendingIntent = undefined;
+    state.waitingFor = undefined;
+    state.conversationPhase = 'EMERGENCY';
+    persistConversationState(session, state);
+    return state;
+  }
+  if (intent.kind === 'blocked' || intent.kind === 'unsupported_language' || intent.kind === 'unsupported_region') {
+    // Safety/scope messages are intentionally non-destructive: preserve the
+    // user's previous local task so a later valid follow-up can continue, but
+    // never mutate/search using the blocked message itself.
+    state.conversationPhase = 'BLOCKED';
+    persistConversationState(session, state);
+    return state;
+  }
+
   const preferences = detectPreferences(message);
 
   if (state.waitingFor === 'location' && region) {
@@ -274,7 +373,6 @@ export function updateConversationState(
     return state;
   }
 
-  const intent = inferIntent(message);
   if (state.currentIntent?.kind === 'local_search' && isPreferenceOnlyContinuation(message)) {
     state.activePreferences = [...new Set([...state.activePreferences, ...preferences])];
     state.conversationPhase = 'SEARCHING_LOCAL';
@@ -286,8 +384,6 @@ export function updateConversationState(
     if (preferences.length) state.activePreferences = [...new Set([...state.activePreferences, ...preferences])];
     state.currentTopic = intent.category;
     state.currentIntent = intent;
-    // A region explicitly written in this search is sufficient even when the
-    // user did not first state it separately as their current location.
     if (!region && !resolveRelevantRegion(state, time)) {
       state.pendingIntent = intent;
       state.waitingFor = 'location';
@@ -314,7 +410,9 @@ export function resolveRelevantRegion(
   requestedTime: SandraTimeContext = state.timeContext,
 ): SandraRegion | null {
   const effectiveTime = requestedTime === 'unspecified' ? state.timeContext : requestedTime;
-  const future = effectiveTime !== 'unspecified' ? state.futureLocations[effectiveTime] : undefined;
+  const future = effectiveTime !== 'unspecified' && effectiveTime !== 'now'
+    ? state.futureLocations[effectiveTime]
+    : undefined;
   if (future) return future.region;
   if (state.currentLocation && Date.now() - state.currentLocation.timestamp <= CURRENT_LOCATION_TTL_MS) {
     return state.currentLocation.region;
@@ -340,7 +438,7 @@ export function buildSearchMessage(message: string, state: ConversationState): s
   const messageIntent = inferIntent(message);
   const continuingTask =
     state.currentIntent?.kind === 'local_search' &&
-    (bareRegion || messageIntent.kind !== 'local_search');
+    (bareRegion || messageIntent.kind === 'conversation');
   const base = continuingTask
     ? `${state.currentIntent?.raw ?? `Ich brauche ${state.currentIntent?.category ?? 'etwas Passendes'}.`} Zusätzliche Anforderung: ${message}`
     : message;
