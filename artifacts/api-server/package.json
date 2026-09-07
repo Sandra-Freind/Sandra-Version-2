@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "rm -rf .test && esbuild src/lib/sandraCatalog.test.ts src/lib/conversationState.test.ts --bundle --platform=node --format=esm --outdir=.test && node --test .test/sandraCatalog.test.js .test/conversationState.test.js test/sandraKnowledge.test.mjs"
+    "test": "rm -rf .test && esbuild src/lib/sandraCatalog.test.ts src/lib/conversationState.test.ts src/lib/sandraPolicy.test.ts --bundle --platform=node --format=esm --outdir=.test && node --test .test/sandraCatalog.test.js .test/conversationState.test.js .test/sandraPolicy.test.js test/sandraKnowledge.test.mjs"
   },
   "dependencies": {
     "@workspace/api-zod": "file:../../lib/api-zod",
