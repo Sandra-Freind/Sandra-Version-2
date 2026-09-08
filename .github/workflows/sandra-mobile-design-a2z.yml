@@ -1,0 +1,114 @@
+name: Sandra mobile modern design A-Z
+on:
+  push:
+    branches: [design/sandra-pattaya-modern]
+permissions:
+  contents: read
+jobs:
+  mobile-a2z:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install workspace
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Mobile typecheck
+        run: pnpm --dir artifacts/mobile-app typecheck
+      - name: API regression
+        run: pnpm --dir artifacts/api-server test
+      - name: Modern UI contract checks
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('artifacts/mobile-app/app/(tabs)/index.tsx')
+          s=p.read_text(encoding='utf-8')
+          must=[
+            'testID="interpreter-german"',
+            'testID="interpreter-thai"',
+            "handleInterpreter('th')",
+            "handleInterpreter('de')",
+            "player.play()",
+            'Chat', 'Übersetzer', 'Menü'
+          ]
+          for x in must:
+            assert x in s, f'missing UI/function contract: {x}'
+          forbidden=[
+            'Auf Thailändisch vorlesen',
+            'Auf Deutsch vorlesen',
+            'Sprich ruhig und deutlich',
+            'Tipps',
+            '>Karte<'
+          ]
+          for x in forbidden:
+            assert x not in s, f'forbidden legacy/manual UI still present: {x}'
+          assert s.count('testID="interpreter-german"')==1
+          assert s.count('testID="interpreter-thai"')==1
+          print('MODERN_UI_CONTRACT_OK')
+      - name: Expo iOS and Android bundle build
+        env:
+          EXPO_PUBLIC_DOMAIN: example.invalid
+          REPL_ID: sandra-a2z-ci
+        run: pnpm --dir artifacts/mobile-app build
+      - name: Verify production bundles
+        shell: python
+        run: |
+          from pathlib import Path
+          root=Path('artifacts/mobile-app/static-build')
+          ios=list(root.glob('*/_expo/static/js/ios/bundle.js'))
+          android=list(root.glob('*/_expo/static/js/android/bundle.js'))
+          assert ios and android, (ios,android)
+          for p in [ios[-1],android[-1]]:
+            assert p.stat().st_size>10000,(p,p.stat().st_size)
+          print('MOBILE_BUNDLES_OK',ios[-1].stat().st_size,android[-1].stat().st_size)
+
+  live-backend-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE: https://darkgray-finch-693806.hostingersite.com
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Live health, finder, context, safety and API compatibility
+        shell: python
+        run: |
+          import json,time,uuid,urllib.request,urllib.error
+          BASE='https://darkgray-finch-693806.hostingersite.com'
+          def sid(): return 'design-'+uuid.uuid4().hex
+          def post(msg,session=None,timeout=75):
+              req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:return e.code,json.loads(e.read().decode())
+          with urllib.request.urlopen(BASE+'/api/healthz',timeout=20) as r: assert r.status==200
+          # six regions x representative categories
+          cases=[
+            'Restaurant in Naklua','Restaurant in Wongamat','Apotheke in Central Pattaya',
+            'Zahnarzt in Pratumnak','Restaurant in Jomtien','Tierarzt in Darkside'
+          ]
+          for q in cases:
+              st,b=post(q); assert st==200,(q,st,b); assert b.get('reply'),(q,b); maps=b.get('maps',[]); assert 1<=len(maps)<=3,(q,b)
+              for m in maps: assert m.get('url','').startswith('https://www.google.com/maps/search/?api=1&query='),(q,m)
+          # context chain
+          s=sid()
+          for q in ['Ich bin in Jomtien','Ich suche ein Restaurant','direkt am Strand','der erste','Telefonnummer?','noch eine']:
+              st,b=post(q,s); assert st==200 and b.get('reply'),(q,st,b)
+          # blocked / emergency / boundary
+          for q in ['Erzähl mir einen politischen Witz','Schreib mir ein Unterhaltungsquiz','Restaurant in Bangkok']:
+              st,b=post(q); assert st in (200,400,422),(q,st,b); assert b,(q,b)
+          st,b=post('Ich bekomme keine Luft und habe starke Brustschmerzen',sid())
+          assert st==200,(st,b); assert '1669' in b.get('reply',''),b
+          # invalid input
+          req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':''}).encode(),headers={'Content-Type':'application/json','x-sandra-session':sid()},method='POST')
+          try:
+              urllib.request.urlopen(req,timeout=30)
+              raise AssertionError('empty input unexpectedly accepted')
+          except urllib.error.HTTPError as e:
+              assert e.code==400,e.code
+          print('LIVE_BACKEND_COMPATIBILITY_OK')
