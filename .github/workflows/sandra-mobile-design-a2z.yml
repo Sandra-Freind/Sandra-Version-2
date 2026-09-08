@@ -17,8 +17,8 @@ jobs:
         run: |
           corepack enable
           pnpm install --frozen-lockfile
-      - name: Mobile typecheck
-        run: pnpm --dir artifacts/mobile-app typecheck
+      - name: Workspace and mobile typecheck
+        run: pnpm typecheck
       - name: API regression
         run: pnpm --dir artifacts/api-server test
       - name: Modern UI contract checks
@@ -80,14 +80,17 @@ jobs:
         run: |
           import json,time,uuid,urllib.request,urllib.error
           BASE='https://darkgray-finch-693806.hostingersite.com'
-          def sid(): return 'design-'+uuid.uuid4().hex
+          def b36(n):
+              chars='0123456789abcdefghijklmnopqrstuvwxyz'; out=''
+              while n: n,r=divmod(n,36); out=chars[r]+out
+              return out or '0'
+          def sid(): return f"v3-{b36(int(time.time()*1000))}-{uuid.uuid4()}"
           def post(msg,session=None,timeout=75):
               req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':msg}).encode(),headers={'Content-Type':'application/json','x-sandra-session':session or sid()},method='POST')
               try:
                   with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,json.loads(r.read().decode())
               except urllib.error.HTTPError as e:return e.code,json.loads(e.read().decode())
           with urllib.request.urlopen(BASE+'/api/healthz',timeout=20) as r: assert r.status==200
-          # six regions x representative categories
           cases=[
             'Restaurant in Naklua','Restaurant in Wongamat','Apotheke in Central Pattaya',
             'Zahnarzt in Pratumnak','Restaurant in Jomtien','Tierarzt in Darkside'
@@ -95,16 +98,13 @@ jobs:
           for q in cases:
               st,b=post(q); assert st==200,(q,st,b); assert b.get('reply'),(q,b); maps=b.get('maps',[]); assert 1<=len(maps)<=3,(q,b)
               for m in maps: assert m.get('url','').startswith('https://www.google.com/maps/search/?api=1&query='),(q,m)
-          # context chain
           s=sid()
           for q in ['Ich bin in Jomtien','Ich suche ein Restaurant','direkt am Strand','der erste','Telefonnummer?','noch eine']:
               st,b=post(q,s); assert st==200 and b.get('reply'),(q,st,b)
-          # blocked / emergency / boundary
           for q in ['Erzähl mir einen politischen Witz','Schreib mir ein Unterhaltungsquiz','Restaurant in Bangkok']:
               st,b=post(q); assert st in (200,400,422),(q,st,b); assert b,(q,b)
           st,b=post('Ich bekomme keine Luft und habe starke Brustschmerzen',sid())
           assert st==200,(st,b); assert '1669' in b.get('reply',''),b
-          # invalid input
           req=urllib.request.Request(BASE+'/api/sandra/chat',data=json.dumps({'mode':'chat','message':''}).encode(),headers={'Content-Type':'application/json','x-sandra-session':sid()},method='POST')
           try:
               urllib.request.urlopen(req,timeout=30)
