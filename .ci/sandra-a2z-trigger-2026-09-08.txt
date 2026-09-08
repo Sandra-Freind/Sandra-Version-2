@@ -1,0 +1,2 @@
+Trigger vollständiger Sandra-Version-2 A-Z-Prüfzyklus für den aktuellen Design-Stand cf37e33724340a1dddc26c8f67198324ac105d9b.
+Keine Sandra-Funktionsänderung; diese Datei dient ausschließlich dazu, den vorhandenen push-basierten GitHub-Actions-Prüfzyklus auszulösen.
