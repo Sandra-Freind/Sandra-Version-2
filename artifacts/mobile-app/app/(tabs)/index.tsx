@@ -383,6 +383,7 @@ export default function SandraChatScreen() {
           await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
           await recorder.prepareToRecordAsync();
           recorder.record();
+          setInterpreterResult(null);
           setInterpreterTarget(target);
           setNotice('Jetzt sprechen… Zum Beenden erneut tippen.');
         } catch {
