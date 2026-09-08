@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -9,14 +8,15 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Keyboard,
   Linking,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -42,8 +42,13 @@ import {
 } from '@/lib/chatStorage';
 
 type Message = StoredChatMessage;
-
 type InterpreterTarget = 'de' | 'th';
+type AppTab = 'chat' | 'translator' | 'menu';
+type InterpreterResult = {
+  heard: string;
+  translated: string;
+  target: InterpreterTarget;
+};
 
 async function recordingToBase64(uri: string): Promise<string> {
   const response = await fetch(uri);
@@ -84,17 +89,6 @@ async function prepareAudioPlayback(
     encoding: FileSystem.EncodingType.Base64,
   });
   return uri;
-}
-
-function GlowingLine({ width, height, rotate, top, left }: { width: any, height: number, rotate: string, top: any, left: any }) {
-  return (
-    <View style={{ position: 'absolute', top, left, width, height, transform: [{ rotate }], justifyContent: 'center', alignItems: 'center' }} pointerEvents="none">
-      <View style={{ position: 'absolute', width: '100%', height: height + 24, backgroundColor: '#d4af37', opacity: 0.15, borderRadius: height }} />
-      <View style={{ position: 'absolute', width: '100%', height: height + 12, backgroundColor: '#d4af37', opacity: 0.25, borderRadius: height }} />
-      <View style={{ position: 'absolute', width: '100%', height: height + 4, backgroundColor: '#e6c762', opacity: 0.6, borderRadius: height }} />
-      <View style={{ width: '100%', height: height, backgroundColor: '#fff8d6', borderRadius: height }} />
-    </View>
-  );
 }
 
 async function openSafeHttpsUrl(value: string) {
@@ -144,56 +138,23 @@ function interpreterFailureMessage(reason?: string): string {
   }
 }
 
-function MessageBubble({ item }: { item: Message }) {
-  return (
-    <View style={item.role === 'user' ? styles.userMessage : styles.sandraMessage}>
-      <LinkedMessageText item={item} />
-      {item.maps?.map((map, index) => (
-        <Pressable
-          key={`${map.url ?? map.query ?? 'map'}-${index}`}
-          style={styles.mapLink}
-          onPress={() => {
-            const url = googleMapsUrl(map);
-            if (url) {
-              void openSafeHttpsUrl(url);
-              return;
-            }
-            Alert.alert(
-              'Karte nicht verfügbar',
-              'Für diesen Eintrag liegt keine sichere Kartenadresse vor.',
-            );
-          }}
-        >
-          <Text style={styles.mapLinkText}>
-            {map.title ? `${map.title} – ` : ''}In Google Maps öffnen
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
 function LinkedMessageText({ item }: { item: Message }) {
   const style = item.role === 'user' ? styles.userText : styles.sandraText;
   const parts: Array<{ text: string; url?: string }> = [];
   const urlPattern = /https:\/\/[^\s<>"']+/gu;
   let cursor = 0;
+
   for (const match of item.text.matchAll(urlPattern)) {
     const rawUrl = match[0];
     const matchIndex = match.index;
-    if (matchIndex > cursor) {
-      parts.push({ text: item.text.slice(cursor, matchIndex) });
-    }
+    if (matchIndex > cursor) parts.push({ text: item.text.slice(cursor, matchIndex) });
     const cleanUrl = rawUrl.replace(/[),.;!?]+$/gu, '');
     if (cleanUrl) parts.push({ text: cleanUrl, url: cleanUrl });
-    if (cleanUrl.length < rawUrl.length) {
-      parts.push({ text: rawUrl.slice(cleanUrl.length) });
-    }
+    if (cleanUrl.length < rawUrl.length) parts.push({ text: rawUrl.slice(cleanUrl.length) });
     cursor = matchIndex + rawUrl.length;
   }
-  if (cursor < item.text.length) {
-    parts.push({ text: item.text.slice(cursor) });
-  }
+
+  if (cursor < item.text.length) parts.push({ text: item.text.slice(cursor) });
 
   return (
     <Text style={style}>
@@ -217,17 +178,126 @@ function LinkedMessageText({ item }: { item: Message }) {
   );
 }
 
+function MessageBubble({ item }: { item: Message }) {
+  const isUser = item.role === 'user';
+  return (
+    <View style={[styles.messageRow, isUser ? styles.messageRowUser : null]}>
+      {!isUser ? (
+        <Image
+          source={require('../../assets/images/icon.png')}
+          style={styles.messageAvatar}
+        />
+      ) : null}
+      <View style={[styles.messageBubble, isUser ? styles.userMessage : styles.sandraMessage]}>
+        <LinkedMessageText item={item} />
+        {item.maps?.map((map, index) => (
+          <Pressable
+            key={`${map.url ?? map.query ?? 'map'}-${index}`}
+            style={styles.mapLink}
+            onPress={() => {
+              const url = googleMapsUrl(map);
+              if (url) {
+                void openSafeHttpsUrl(url);
+                return;
+              }
+              Alert.alert('Karte nicht verfügbar', 'Für diesen Eintrag liegt keine sichere Kartenadresse vor.');
+            }}
+          >
+            <Text style={styles.mapLinkText}>
+              📍 {map.title ? `${map.title} – ` : ''}Auf der Karte zeigen
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function SandraHeader() {
+  return (
+    <LinearGradient
+      colors={['#143f76', '#294f90', '#d87983', '#f39b6c']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.header}
+    >
+      <View style={styles.headerLeft}>
+        <View style={styles.brandLine}>
+          <Text style={styles.palm}>🌴</Text>
+          <View>
+            <Text style={styles.brandName}>Sandra</Text>
+            <Text style={styles.brandSubtitle}>Dein Pattaya Guide</Text>
+          </View>
+        </View>
+        <Text style={styles.handwritten}>Deine Fragen.{`\n`}Meine Hilfe.{`\n`}Pattaya. Ganz einfach. ♡</Text>
+      </View>
+
+      <View style={styles.headerRight}>
+        <View style={styles.languagePill}>
+          <Text style={styles.languagePillText}>🇩🇪 Deutsch⌄</Text>
+        </View>
+        <Image
+          source={require('../../assets/images/icon.png')}
+          style={styles.headerAvatar}
+        />
+        <Text style={styles.pattayaWord}>PATTAYA</Text>
+      </View>
+    </LinearGradient>
+  );
+}
+
+function BottomNavigation({ active, onChange }: { active: AppTab; onChange: (tab: AppTab) => void }) {
+  const items: Array<{ key: AppTab; icon: string; label: string }> = [
+    { key: 'chat', icon: '💬', label: 'Chat' },
+    { key: 'translator', icon: '文', label: 'Übersetzer' },
+    { key: 'menu', icon: '☰', label: 'Menü' },
+  ];
+
+  return (
+    <View style={styles.bottomNav}>
+      {items.map((item) => {
+        const selected = active === item.key;
+        return (
+          <Pressable
+            key={item.key}
+            style={styles.navItem}
+            onPress={() => onChange(item.key)}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+          >
+            <Text style={[styles.navIcon, selected ? styles.navActive : null]}>{item.icon}</Text>
+            <Text style={[styles.navLabel, selected ? styles.navActive : null]}>{item.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function MenuRow({ icon, title, subtitle, onPress }: { icon: string; title: string; subtitle?: string; onPress: () => void }) {
+  return (
+    <Pressable style={styles.menuRow} onPress={onPress}>
+      <Text style={styles.menuIcon}>{icon}</Text>
+      <View style={styles.menuCopy}>
+        <Text style={styles.menuTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.menuSubtitle}>{subtitle}</Text> : null}
+      </View>
+      <Text style={styles.menuChevron}>›</Text>
+    </Pressable>
+  );
+}
+
 export default function SandraChatScreen() {
   const insets = useSafeAreaInsets();
-  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const [activeTab, setActiveTab] = useState<AppTab>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatLoaded, setChatLoaded] = useState(false);
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [notice, setNotice] = useState('');
-  const [interpreterTarget, setInterpreterTarget] =
-    useState<InterpreterTarget | null>(null);
+  const [interpreterTarget, setInterpreterTarget] = useState<InterpreterTarget | null>(null);
   const [interpreterBusy, setInterpreterBusy] = useState(false);
+  const [interpreterResult, setInterpreterResult] = useState<InterpreterResult | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
   const lastAudioUriRef = useRef<string | null>(null);
   const sendRequestRef = useRef(0);
@@ -236,7 +306,6 @@ export default function SandraChatScreen() {
 
   useEffect(() => {
     let active = true;
-
     void loadChatHistory()
       .then((history) => {
         if (active) setMessages(history);
@@ -244,7 +313,6 @@ export default function SandraChatScreen() {
       .finally(() => {
         if (active) setChatLoaded(true);
       });
-
     return () => {
       active = false;
     };
@@ -257,26 +325,6 @@ export default function SandraChatScreen() {
     });
   }, [chatLoaded, messages]);
 
-  const footerPadding = useMemo(
-    () =>
-      Math.max(
-        insets.bottom,
-        Platform.OS === 'web' ? (viewportHeight <= 480 ? 8 : 34) : 8,
-      ),
-    [insets.bottom, viewportHeight],
-  );
-  const topPadding = useMemo(
-    () =>
-      Math.max(
-        insets.top,
-        Platform.OS === 'web' ? (viewportHeight <= 480 ? 8 : 67) : 8,
-      ),
-    [insets.top, viewportHeight],
-  );
-  const isWideScreen = viewportWidth >= 700;
-  const isCompactHeight = viewportHeight <= 600;
-  const horizontalPadding = viewportWidth >= 1_000 ? 24 : viewportWidth >= 700 ? 16 : 8;
-
   const send = useCallback(async () => {
     const text = draft.trim();
     if (!text || isSending || !chatLoaded) return;
@@ -285,11 +333,9 @@ export default function SandraChatScreen() {
     Keyboard.dismiss();
     setDraft('');
     setNotice('');
-    setMessages((current) => [
-      ...current,
-      { id: `user-${Date.now()}`, role: 'user', text },
-    ]);
+    setMessages((current) => [...current, { id: `user-${Date.now()}`, role: 'user', text }]);
     setIsSending(true);
+
     try {
       const response = await sendSandraMessage(text);
       if (sendRequestRef.current !== requestId) return;
@@ -304,12 +350,7 @@ export default function SandraChatScreen() {
       ]);
     } catch (error) {
       if (sendRequestRef.current !== requestId) return;
-      setNotice(
-        getSandraErrorMessage(
-          error,
-          'Technisches Problem mit der originalen Sandra-API.',
-        ),
-      );
+      setNotice(getSandraErrorMessage(error, 'Technisches Problem mit der originalen Sandra-API.'));
     } finally {
       if (sendRequestRef.current !== requestId) return;
       setIsSending(false);
@@ -319,12 +360,7 @@ export default function SandraChatScreen() {
 
   const handleInterpreter = useCallback(
     async (target: InterpreterTarget) => {
-      if (
-        interpreterBusy ||
-        (interpreterTarget && interpreterTarget !== target)
-      ) {
-        return;
-      }
+      if (interpreterBusy || (interpreterTarget && interpreterTarget !== target)) return;
 
       if (!recorder.isRecording) {
         try {
@@ -337,22 +373,14 @@ export default function SandraChatScreen() {
                 'Bitte erlaube Sandra den Mikrofonzugriff in den Einstellungen.',
                 [
                   { text: 'Abbrechen', style: 'cancel' },
-                  {
-                    text: 'Einstellungen öffnen',
-                    onPress: () => {
-                      void Linking.openSettings();
-                    },
-                  },
+                  { text: 'Einstellungen öffnen', onPress: () => void Linking.openSettings() },
                 ],
               );
             }
             return;
           }
 
-          await setAudioModeAsync({
-            allowsRecording: true,
-            playsInSilentMode: true,
-          });
+          await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
           await recorder.prepareToRecordAsync();
           recorder.record();
           setInterpreterTarget(target);
@@ -384,41 +412,23 @@ export default function SandraChatScreen() {
           throw new Error(interpreterFailureMessage(result.error));
         }
 
-        setMessages((current) => [
-          ...current,
-          {
-            id: `heard-${Date.now()}`,
-            role: 'user',
-            text: result.heard ?? '',
-          },
-          {
-            id: `translated-${Date.now()}`,
-            role: 'sandra',
-            text: result.translated ?? '',
-          },
-        ]);
+        setInterpreterResult({
+          heard: result.heard,
+          translated: result.translated,
+          target,
+        });
 
         if (result.audio) {
-          await setAudioModeAsync({
-            allowsRecording: false,
-            playsInSilentMode: true,
-          });
-          const playbackUri = await prepareAudioPlayback(
-            result.audio,
-            lastAudioUriRef.current,
-          );
-          lastAudioUriRef.current =
-            Platform.OS === 'web' ? null : playbackUri;
+          await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+          const playbackUri = await prepareAudioPlayback(result.audio, lastAudioUriRef.current);
+          lastAudioUriRef.current = Platform.OS === 'web' ? null : playbackUri;
           player.replace(playbackUri);
           player.play();
         }
         setNotice('Übersetzung abgeschlossen.');
       } catch (error) {
         setNotice(
-          getSandraErrorMessage(
-            error,
-            'Sandra: Die Übersetzung konnte nicht abgeschlossen werden.',
-          ),
+          getSandraErrorMessage(error, 'Sandra: Die Übersetzung konnte nicht abgeschlossen werden.'),
         );
       } finally {
         setInterpreterBusy(false);
@@ -428,141 +438,180 @@ export default function SandraChatScreen() {
     [interpreterBusy, interpreterTarget, player, recorder],
   );
 
-  return (
-    <View style={styles.appBackground}>
-      <View
-        style={[
-          styles.outerContent,
-          {
-            paddingTop: topPadding,
-            paddingBottom: footerPadding,
-            paddingHorizontal: horizontalPadding,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.responsiveShell,
-            isWideScreen ? styles.responsiveShellWide : null,
-          ]}
-        >
-          <View style={styles.responsiveShellInner}>
-            <LinearGradient
-              colors={['#050505', '#111111', '#050505']}
-              style={StyleSheet.absoluteFill}
-            />
-            <GlowingLine top="12%" left="-15%" rotate="-22deg" width="130%" height={3} />
-            
-            <View style={[styles.brandArea, isCompactHeight ? styles.brandAreaCompact : null]}>
-              <Text style={styles.brand} maxFontSizeMultiplier={1.5}>
-                Hollidayfriend
-              </Text>
-              <Text style={styles.brandSub} maxFontSizeMultiplier={1.5}>
-                Designed from Ralf Pleines Consulting ∞
-              </Text>
-            </View>
-
-            <View style={[styles.chatInner, isCompactHeight ? styles.chatInnerCompact : null]}>
-              <Text style={styles.introTitle} maxFontSizeMultiplier={1.8}>
-                Hey, ich bin Sandra
-              </Text>
-              <Text
-                style={[styles.introText, isCompactHeight ? styles.introTextCompact : null]}
-                maxFontSizeMultiplier={1.8}
-              >
-                Für dich da – Freundin und Begleiterin in Pattaya
-              </Text>
-
-              <View style={styles.logFrame}>
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000000' }]} />
-                <GlowingLine top="20%" left="-25%" rotate="-35deg" width="150%" height={5} />
-                <GlowingLine top="65%" left="15%" rotate="28deg" width="130%" height={5} />
-                
-                <FlatList
-                  ref={listRef}
-                  data={messages}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => <MessageBubble item={item} />}
-                  style={styles.log}
-                  contentContainerStyle={styles.logContent}
-                  onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-                  keyboardShouldPersistTaps="handled"
-                  keyboardDismissMode="interactive"
-                  scrollEnabled={messages.length > 0}
-                />
-                
-                {notice ? (
-                  <View style={styles.noticeOverlay}>
-                    <Text style={styles.noticeText}>{notice}</Text>
-                  </View>
-                ) : null}
+  const renderChat = () => (
+    <View style={styles.pageBody}>
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <MessageBubble item={item} />}
+        contentContainerStyle={styles.chatContent}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        ListHeaderComponent={
+          messages.length === 0 ? (
+            <View style={styles.welcomeRow}>
+              <Image source={require('../../assets/images/icon.png')} style={styles.welcomeAvatar} />
+              <View style={styles.welcomeBubble}>
+                <Text style={styles.welcomeTitle}>Hallo! 👋</Text>
+                <Text style={styles.welcomeText}>Ich bin Sandra, dein persönlicher Pattaya Guide.</Text>
+                <Text style={styles.welcomeText}>Wie kann ich dir heute helfen?</Text>
               </View>
+            </View>
+          ) : null
+        }
+      />
 
-              {isSending ? (
-                <View style={styles.typing}>
-                  <ActivityIndicator size="small" color="#8b1c1c" />
-                  <Text style={styles.typingText}>Sandra tippt...</Text>
-                </View>
-              ) : null}
+      {isSending ? (
+        <View style={styles.typing}>
+          <ActivityIndicator size="small" color="#0b86ff" />
+          <Text style={styles.typingText}>Sandra tippt...</Text>
+        </View>
+      ) : null}
 
-              <KeyboardAvoidingView
-                behavior="padding"
-                keyboardVerticalOffset={0}
-                style={styles.inputContainer}
-              >
-                <View style={styles.translateButtons}>
-                  <Pressable
-                    testID="interpreter-german"
-                    style={styles.translateButtonContainer}
-                    onPress={() => {
-                      void handleInterpreter('th');
-                    }}
-                    disabled={interpreterBusy || interpreterTarget === 'de'}
-                    accessibilityLabel="Deutsch nach Thai dolmetschen"
-                  >
-                    <LinearGradient colors={['#ffffff', '#eeeeee', '#e0e0e0']} style={styles.translateButtonGradient}>
-                      <Text style={styles.translateText}>
-                        {interpreterTarget === 'th' ? 'Stop' : 'Deutsch'}
-                      </Text>
-                    </LinearGradient>
-                  </Pressable>
-                  <Pressable
-                    testID="interpreter-thai"
-                    style={styles.translateButtonContainer}
-                    onPress={() => {
-                      void handleInterpreter('de');
-                    }}
-                    disabled={interpreterBusy || interpreterTarget === 'th'}
-                    accessibilityLabel="Thai nach Deutsch dolmetschen"
-                  >
-                    <LinearGradient colors={['#ffffff', '#eeeeee', '#e0e0e0']} style={styles.translateButtonGradient}>
-                      <Text style={styles.translateText}>
-                        {interpreterTarget === 'de' ? 'Stop' : 'Thailändisch'}
-                      </Text>
-                    </LinearGradient>
-                  </Pressable>
-                </View>
-                
-                <View style={styles.inputWrapper}>
-                  <LinearGradient colors={['#ffffff', '#f4f4f4', '#e8e8e8']} style={StyleSheet.absoluteFill} />
-                  <TextInput
-                    testID="message-input"
-                    value={draft}
-                    onChangeText={setDraft}
-                    onSubmitEditing={send}
-                    returnKeyType="send"
-                    placeholder="Nachricht eingeben"
-                    placeholderTextColor="#888888"
-                    style={styles.input}
-                    editable={!isSending && chatLoaded}
-                    accessibilityLabel="Nachricht eingeben"
-                    maxFontSizeMultiplier={1.6}
-                  />
-                </View>
-              </KeyboardAvoidingView>
+      {notice && activeTab === 'chat' ? <Text style={styles.noticeText}>{notice}</Text> : null}
+
+      <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={0}>
+        <View style={styles.chatInputRow}>
+          <View style={styles.roundAction}>
+            <Text style={styles.roundActionText}>🎙</Text>
+          </View>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              testID="message-input"
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={send}
+              returnKeyType="send"
+              placeholder="Schreib mir deine Frage ..."
+              placeholderTextColor="#8b9ab1"
+              style={styles.input}
+              editable={!isSending && chatLoaded}
+              accessibilityLabel="Nachricht eingeben"
+              maxFontSizeMultiplier={1.4}
+            />
+          </View>
+          <Pressable style={styles.roundAction} onPress={send} disabled={isSending || !chatLoaded}>
+            <Text style={styles.sendIcon}>➤</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+
+  const renderTranslator = () => {
+    const germanActive = interpreterTarget === 'th';
+    const thaiActive = interpreterTarget === 'de';
+    return (
+      <View style={styles.pageBody}>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionIcon}>文</Text>
+          <Text style={styles.sectionTitle}>Übersetzer</Text>
+        </View>
+        <Text style={styles.sectionSubtitle}>Einfach sprechen. Schnell übersetzen.</Text>
+
+        <View style={styles.interpreterButtons}>
+          <Pressable
+            testID="interpreter-german"
+            style={[styles.interpreterButton, germanActive ? styles.interpreterButtonActive : null]}
+            onPress={() => void handleInterpreter('th')}
+            disabled={interpreterBusy || thaiActive}
+            accessibilityLabel="Deutsch nach Thai dolmetschen"
+          >
+            <Text style={styles.interpreterMic}>🎙</Text>
+            <Text style={styles.interpreterButtonText}>{germanActive ? 'Stop' : 'Deutsch'}</Text>
+          </Pressable>
+          <Pressable
+            testID="interpreter-thai"
+            style={[styles.interpreterButton, thaiActive ? styles.interpreterButtonActive : null]}
+            onPress={() => void handleInterpreter('de')}
+            disabled={interpreterBusy || germanActive}
+            accessibilityLabel="Thai nach Deutsch dolmetschen"
+          >
+            <Text style={styles.interpreterMic}>🎙</Text>
+            <Text style={styles.interpreterButtonText}>{thaiActive ? 'Stop' : 'Thailändisch'}</Text>
+          </Pressable>
+        </View>
+
+        {notice ? <Text style={styles.translatorNotice}>{notice}</Text> : null}
+
+        {interpreterBusy ? (
+          <View style={styles.translatorBusy}>
+            <ActivityIndicator size="small" color="#0b86ff" />
+            <Text style={styles.translatorBusyText}>Sandra übersetzt…</Text>
+          </View>
+        ) : null}
+
+        {interpreterResult ? (
+          <View style={styles.translationStack}>
+            <View style={styles.translationField}>
+              <Text style={styles.translationText}>{interpreterResult.heard}</Text>
+            </View>
+            <Text style={styles.swapMark}>↕</Text>
+            <View style={styles.translationField}>
+              <Text style={[styles.translationText, interpreterResult.target === 'th' ? styles.thaiText : null]}>
+                {interpreterResult.translated}
+              </Text>
             </View>
           </View>
+        ) : (
+          <View style={styles.translatorEmpty}>
+            <Text style={styles.translatorEmptyText}>
+              Tippe auf Deutsch oder Thailändisch und sprich. Die Übersetzung wird danach automatisch vorgelesen.
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderMenu = () => (
+    <ScrollView style={styles.pageBody} contentContainerStyle={styles.menuContent}>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionIcon}>☰</Text>
+        <Text style={styles.sectionTitle}>Menü</Text>
+      </View>
+      <Text style={styles.sectionSubtitle}>Einstellungen und rechtliche Informationen</Text>
+
+      <View style={styles.menuList}>
+        <MenuRow
+          icon="⚙"
+          title="Einstellungen"
+          onPress={() => Alert.alert('Einstellungen', 'Die Einstellungen werden hier eingebunden.')}
+        />
+        <MenuRow
+          icon="▣"
+          title="Rechtliche Informationen"
+          onPress={() => Alert.alert('Rechtliche Informationen', 'Impressum, Datenschutz und Nutzungsbedingungen werden hier eingebunden.')}
+        />
+        <MenuRow
+          icon="♛"
+          title="Abos & Bezahlung"
+          onPress={() => Alert.alert('Abos & Bezahlung', 'Tarife und Bezahlfunktionen werden später hier eingebunden.')}
+        />
+        <MenuRow
+          icon="ⓘ"
+          title="Über Sandra"
+          onPress={() => Alert.alert('Über Sandra', 'Sandra – dein Pattaya Guide.')}
+        />
+      </View>
+    </ScrollView>
+  );
+
+  return (
+    <View style={[styles.appBackground, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <View style={styles.shell}>
+        <SandraHeader />
+        <View style={styles.contentCard}>
+          {activeTab === 'chat' ? renderChat() : null}
+          {activeTab === 'translator' ? renderTranslator() : null}
+          {activeTab === 'menu' ? renderMenu() : null}
         </View>
+        <BottomNavigation active={activeTab} onChange={(tab) => {
+          setNotice('');
+          setActiveTab(tab);
+        }} />
       </View>
     </View>
   );
@@ -571,216 +620,406 @@ export default function SandraChatScreen() {
 const styles = StyleSheet.create({
   appBackground: {
     flex: 1,
-    backgroundColor: '#e6e6e8',
-    overflow: 'hidden',
+    backgroundColor: '#dfe7f0',
   },
-  outerContent: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  responsiveShell: {
+  shell: {
     flex: 1,
     width: '100%',
-    minHeight: 0,
-    borderRadius: 18,
-    shadowColor: '#a0a0a8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 24,
-    elevation: 20,
-    backgroundColor: '#050505',
-  },
-  responsiveShellWide: {
-    maxWidth: 1000,
-  },
-  responsiveShellInner: {
-    flex: 1,
-    borderRadius: 18,
-    overflow: 'hidden',
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    paddingTop: 4,
-  },
-  brandArea: {
-    height: 48,
-    justifyContent: 'center',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  brandAreaCompact: {
-    height: 38,
-    marginBottom: 4,
-  },
-  brand: {
-    color: '#e6c762',
-    fontSize: 20,
-    fontStyle: 'italic',
-    fontWeight: 'bold',
-    fontFamily: Platform.OS === 'ios' ? 'Palatino' : 'serif',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  brandSub: {
-    color: '#d4af37',
-    fontSize: 12,
-    fontStyle: 'italic',
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Palatino' : 'serif',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  chatInner: {
-    flex: 1,
-    minHeight: 0,
-    borderRadius: 10,
-    padding: 12,
+    maxWidth: 620,
+    alignSelf: 'center',
     backgroundColor: '#ffffff',
   },
-  chatInnerCompact: {
-    padding: 8,
+  header: {
+    height: 132,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
   },
-  introTitle: {
-    color: '#111111',
-    fontSize: 16,
-    fontWeight: 'bold',
+  headerLeft: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
-  introText: {
-    color: '#222222',
+  headerRight: {
+    width: 150,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  brandLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  palm: {
+    fontSize: 28,
+    marginRight: 6,
+  },
+  brandName: {
+    color: '#ffffff',
+    fontSize: 24,
+    lineHeight: 25,
+    fontWeight: '800',
+  },
+  brandSubtitle: {
+    color: '#ffffff',
+    fontSize: 10,
+    opacity: 0.95,
+  },
+  handwritten: {
+    color: '#ffffff',
+    fontSize: 13,
+    lineHeight: 16,
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
+  },
+  languagePill: {
+    borderRadius: 14,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(4,31,65,0.76)',
+  },
+  languagePillText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  headerAvatar: {
+    position: 'absolute',
+    right: 48,
+    bottom: -16,
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.88)',
+  },
+  pattayaWord: {
+    color: '#ff7d35',
     fontSize: 14,
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  introTextCompact: {
+    letterSpacing: 2,
+    fontWeight: '900',
     marginBottom: 4,
   },
-  logFrame: {
+  contentCard: {
     flex: 1,
-    minHeight: 0,
-    position: 'relative',
-    overflow: 'hidden',
-    borderRadius: 4,
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff',
   },
-  log: {
+  pageBody: {
     flex: 1,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 14,
+    paddingTop: 14,
   },
-  logContent: {
-    padding: 10,
-    paddingTop: 45,
-    gap: 6,
+  chatContent: {
+    paddingBottom: 10,
+    gap: 8,
   },
-  noticeOverlay: {
-    position: 'absolute',
-    top: 10,
-    alignSelf: 'center',
-    backgroundColor: '#e6ede6',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: '#c3d9c3',
+  welcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
-  noticeText: {
-    color: '#145c14',
-    fontSize: 13,
-    fontWeight: 'bold',
+  welcomeAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginRight: 8,
+  },
+  welcomeBubble: {
+    flex: 1,
+    backgroundColor: '#edf3f8',
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  welcomeTitle: {
+    color: '#0b2457',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  welcomeText: {
+    color: '#10295e',
+    fontSize: 14,
+    lineHeight: 19,
+    marginBottom: 4,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  messageRowUser: {
+    justifyContent: 'flex-end',
+  },
+  messageAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 7,
+  },
+  messageBubble: {
+    maxWidth: '84%',
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
   },
   userMessage: {
-    padding: 6,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: '#dceeff',
   },
   sandraMessage: {
-    padding: 6,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: '#edf3f8',
   },
   userText: {
-    color: '#0b5ed7',
-    fontSize: 15,
-    fontWeight: '700',
+    color: '#10295e',
+    fontSize: 14,
+    lineHeight: 19,
   },
   sandraText: {
-    color: '#1f7a1f',
-    fontSize: 15,
-    fontWeight: '700',
+    color: '#10295e',
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  inlineLink: {
+    color: '#0b74e5',
+    textDecorationLine: 'underline',
   },
   mapLink: {
-    marginTop: 8,
-    padding: 7,
+    marginTop: 7,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d4af37',
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: '#0b86ff',
+    paddingVertical: 7,
+    paddingHorizontal: 9,
   },
   mapLinkText: {
-    color: '#8a6d1b',
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  typing: {
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 3,
+  },
+  typingText: {
+    color: '#68809e',
+    fontSize: 12,
+  },
+  noticeText: {
+    color: '#44627e',
+    fontSize: 11,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  roundAction: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#0b86ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roundActionText: {
+    color: '#ffffff',
+    fontSize: 18,
+  },
+  sendIcon: {
+    color: '#ffffff',
+    fontSize: 20,
+  },
+  inputWrapper: {
+    flex: 1,
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: '#d9e5f1',
+    borderRadius: 22,
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  input: {
+    paddingHorizontal: 14,
+    fontSize: 13,
+    color: '#173566',
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  sectionIcon: {
+    color: '#0b4fa3',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    color: '#10295e',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  sectionSubtitle: {
+    color: '#6b82a0',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 13,
+  },
+  interpreterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  interpreterButton: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d6e3f0',
+    backgroundColor: '#eef5fb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  interpreterButtonActive: {
+    borderColor: '#0b86ff',
+    backgroundColor: '#dceeff',
+  },
+  interpreterMic: {
+    fontSize: 14,
+  },
+  interpreterButtonText: {
+    color: '#133166',
     fontSize: 12,
     fontWeight: '700',
   },
-  inlineLink: {
-    color: '#0b57d0',
-    textDecorationLine: 'underline',
-  },
-  typing: {
-    minHeight: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  typingText: {
-    color: '#8b1c1c',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  inputContainer: {
-    width: '100%',
-  },
-  translateButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 8,
+  translatorNotice: {
+    color: '#5f7797',
+    fontSize: 10,
+    textAlign: 'center',
     marginBottom: 8,
   },
-  translateButtonContainer: {
-    flex: 1,
-    minHeight: 44,
-    borderWidth: 1.5,
-    borderColor: '#cca84b',
-    borderRadius: 4,
-    overflow: 'hidden',
+  translatorBusy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 8,
   },
-  translateButtonGradient: {
+  translatorBusyText: {
+    color: '#5f7797',
+    fontSize: 11,
+  },
+  translationStack: {
+    gap: 7,
+  },
+  translationField: {
+    minHeight: 46,
+    borderRadius: 8,
+    backgroundColor: '#edf3f8',
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    justifyContent: 'center',
+  },
+  translationText: {
+    color: '#173566',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  thaiText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  swapMark: {
+    color: '#0b86ff',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  translatorEmpty: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 9,
+    backgroundColor: '#f5f8fb',
+  },
+  translatorEmptyText: {
+    color: '#6a819d',
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  menuContent: {
+    paddingBottom: 18,
+  },
+  menuList: {
+    gap: 9,
+  },
+  menuRow: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: '#d9e5f1',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#ffffff',
+  },
+  menuIcon: {
+    width: 28,
+    color: '#0b86ff',
+    fontSize: 18,
+    textAlign: 'center',
+    marginRight: 8,
+  },
+  menuCopy: {
+    flex: 1,
+  },
+  menuTitle: {
+    color: '#173566',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  menuSubtitle: {
+    color: '#7790ad',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  menuChevron: {
+    color: '#6d89aa',
+    fontSize: 23,
+    marginLeft: 8,
+  },
+  bottomNav: {
+    height: 64,
+    backgroundColor: '#03233d',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 18,
+  },
+  navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    gap: 2,
   },
-  translateText: {
-    color: '#333333',
-    fontSize: 15,
-    fontWeight: '500',
+  navIcon: {
+    color: '#ffffff',
+    fontSize: 20,
   },
-  inputWrapper: {
-    width: '100%',
-    minHeight: 44,
-    borderWidth: 1.5,
-    borderColor: '#cca84b',
-    borderRadius: 4,
-    overflow: 'hidden',
+  navLabel: {
+    color: '#ffffff',
+    fontSize: 10,
   },
-  input: {
-    flex: 1,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    color: '#222222',
-    backgroundColor: 'transparent',
+  navActive: {
+    color: '#0b86ff',
   },
 });
