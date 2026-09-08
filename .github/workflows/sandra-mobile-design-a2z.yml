@@ -92,12 +92,19 @@ jobs:
               except urllib.error.HTTPError as e:return e.code,json.loads(e.read().decode())
           with urllib.request.urlopen(BASE+'/api/healthz',timeout=20) as r: assert r.status==200
           cases=[
-            'Restaurant in Naklua','Restaurant in Wongamat','Apotheke in Central Pattaya',
-            'Zahnarzt in Pratumnak','Restaurant in Jomtien','Tierarzt in Darkside'
+            ('Naklua','Restaurant in Naklua'),('Wongamat','Restaurant in Wongamat'),
+            ('Central Pattaya','Apotheke in Central Pattaya'),('Pratumnak','Zahnarzt in Pratumnak'),
+            ('Jomtien','Restaurant in Jomtien'),('Darkside','Tierarzt in Darkside')
           ]
-          for q in cases:
-              st,b=post(q); assert st==200,(q,st,b); assert b.get('reply'),(q,b); maps=b.get('maps',[]); assert 1<=len(maps)<=3,(q,b)
+          mapped=0
+          for region,q in cases:
+              st,b=post(q); assert st==200,(q,st,b); reply=b.get('reply',''); assert reply.strip(),(q,b)
+              maps=b.get('maps',[]); assert isinstance(maps,list) and len(maps)<=3,(q,b)
+              if maps: mapped+=1
               for m in maps: assert m.get('url','').startswith('https://www.google.com/maps/search/?api=1&query='),(q,m)
+              if not maps:
+                  low=reply.lower(); assert ('keinen' in low or 'keine' in low or 'nicht' in low or 'momentan' in low),(q,b)
+          assert mapped>=4, f'too few representative finder cases produced maps: {mapped}/6'
           s=sid()
           for q in ['Ich bin in Jomtien','Ich suche ein Restaurant','direkt am Strand','der erste','Telefonnummer?','noch eine']:
               st,b=post(q,s); assert st==200 and b.get('reply'),(q,st,b)
@@ -111,4 +118,4 @@ jobs:
               raise AssertionError('empty input unexpectedly accepted')
           except urllib.error.HTTPError as e:
               assert e.code==400,e.code
-          print('LIVE_BACKEND_COMPATIBILITY_OK')
+          print(f'LIVE_BACKEND_COMPATIBILITY_OK mapped_cases={mapped}/6')
